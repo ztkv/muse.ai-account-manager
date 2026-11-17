@@ -4,6 +4,16 @@ A locally-run web tool for managing muse.ai accounts — a single Go binary with
 
 Email-code login for multiple accounts, encrypted cookie storage, account admission health checks, invite-code scratching / batch redemption, and subscription quota (token) tracking — everything happens **on your own machine**; no data is ever uploaded to any third party.
 
+**AFF MUSE invitation code Enter during registration to get 1 billion words tokens**
+EZNCZT<br>
+6XNGZL<br>
+MYLMEO<br>
+ZCT7ZR<br>
+IV9ST1<br>
+A4L5EO<br>
+9TPZTU<br>
+EXH6W3<br>
+
 [中文](README.md) · **English**
 
 > ⚠️ This tool is intended for personal management of your own accounts only. Please comply with the muse.ai Terms of Service; mass sign-ups, risk-control evasion and other abuse are outside this tool's design goals.
@@ -222,4 +232,4 @@ Go ≥ 1.22, pure standard library, no third-party dependencies.
 
 MIT — see [LICENSE](LICENSE).
 
-> AI生成
+
