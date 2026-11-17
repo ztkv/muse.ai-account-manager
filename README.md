@@ -231,4 +231,3 @@ Go ≥ 1.22，纯标准库，无第三方依赖。
 
 MIT，详见 [LICENSE](LICENSE)。
 
-> AI生成
