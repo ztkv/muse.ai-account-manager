@@ -26,7 +26,20 @@ muse.ai 账号管理器 —— 本地运行的 Web 工具（Go 单二进制，�
 - **代理支持**：账号级代理 > 全局设置 > `MUSE_PROXY` 环境变量；内置连通性测试
 - **导入 / 导出**：JSON 备份（密文形态，可明文导出自行保管）
 
-截图见 `release-assets/`（演示数据均为虚拟账号）。
+## 界面预览
+
+| | |
+|:---:|:---:|
+| **账号台账总览** | **多选批量操作** |
+| ![账号台账总览](release-assets/screenshot-01-dashboard.png) | ![多选批量操作](release-assets/screenshot-02-batch-bar.png) |
+| **批量兑换邀请码** | **邀请码详情** |
+| ![批量兑换邀请码](release-assets/screenshot-03-batch-redeem.png) | ![邀请码详情](release-assets/screenshot-04-invite.png) |
+
+**新增账号（邮箱验证码登录）**
+
+![新增账号](release-assets/screenshot-05-new-account.png)
+
+> 演示数据均为虚拟账号。
 
 ## 部署指南
 
