@@ -1,0 +1,6 @@
+﻿data/
+*.exe
+muse-manager-linux-*
+*.log
+.temp/
+release-assets/demo-data/

@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236c5ce7'/%3E%3Ctext x='32' y='44' font-size='34' font-weight='800' font-family='Arial' fill='%23fff' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E">
+<title>muse.ai 账号管理</title>
+<style>
+  :root{
+    --bg:#0d0f14; --panel:#151823; --panel2:#1a1e2c; --line:#252a3a;
+    --text:#e6e8f0; --muted:#8b91a5; --dim:#5c6275;
+    --primary:#8b7bff; --primary2:#6c5ce7;
+    --green:#22c55e; --orange:#f59e0b; --red:#ef4444; --gray:#64748b; --violet:#a78bfa;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,"Microsoft YaHei",sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+  ::selection{background:rgba(139,123,255,.35)}
+
+  /* ===== 顶部 ===== */
+  header{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(108,92,231,.08),transparent)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;letter-spacing:.5px;box-shadow:0 4px 16px rgba(108,92,231,.35)}
+  .brand h1{font-size:18px;font-weight:700}
+  .brand .sub{font-size:12px;color:var(--muted)}
+  .hactions{display:flex;gap:10px;align-items:center}
+  .srvinfo{font-size:12px;color:var(--dim)}
+
+  main{max-width:1280px;margin:0 auto;padding:24px 28px 60px}
+
+  /* ===== 统计卡 ===== */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+  .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent,#8b7bff)}
+  .stat .num{font-size:26px;font-weight:800;line-height:1.2}
+  .stat .lbl{font-size:12px;color:var(--muted);margin-top:2px}
+  .stat .num.green{color:var(--green)} .stat .num.orange{color:var(--orange)} .stat .num.red{color:var(--red)}
+
+  /* ===== 工具栏 ===== */
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+  .search{flex:1;min-width:220px;position:relative}
+  .search input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px 9px 34px;color:var(--text);outline:none;transition:border .15s}
+  .search input:focus{border-color:var(--primary)}
+  .search::before{content:"⌕";position:absolute;left:12px;top:50%;transform:translateY(-52%);color:var(--dim);font-size:16px}
+  select{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 10px;color:var(--text);outline:none;cursor:pointer}
+  select:focus{border-color:var(--primary)}
+
+  .btn{border:none;border-radius:10px;padding:9px 16px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:all .15s;background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  .btn:hover{border-color:var(--primary);color:#fff}
+  .btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary2));border:none;color:#fff;box-shadow:0 4px 14px rgba(108,92,231,.3)}
+  .btn.primary:hover{filter:brightness(1.1)}
+  .btn.danger{color:var(--red)}
+  .btn.danger:hover{border-color:var(--red);background:rgba(239,68,68,.08)}
+  .btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
+  .btn.ghost{background:transparent}
+
+  /* ===== 表格 ===== */
+  .table-wrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  thead th{font-size:12px;color:var(--muted);font-weight:600;text-align:left;padding:12px 14px;background:var(--panel2);border-bottom:1px solid var(--line);white-space:nowrap}
+  tbody td{padding:12px 14px;border-bottom:1px solid rgba(37,42,58,.55);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr{transition:background .12s}
+  tbody tr:hover{background:rgba(139,123,255,.05)}
+  .email{font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
+  .cell-sub{font-size:11px;color:var(--dim);margin-top:2px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .b-active{background:rgba(34,197,94,.12);color:var(--green)}
+  .b-expiring{background:rgba(245,158,11,.12);color:var(--orange)}
+  .b-banned{background:rgba(239,68,68,.12);color:var(--red)}
+  .b-unverified{background:rgba(100,116,139,.15);color:#94a3b8}
+  .b-cooldown{background:rgba(167,139,250,.14);color:var(--violet)}
+  .lt-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+  .lt-chip svg{width:12px;height:12px;flex:none}
+  .plan-badge{background:rgba(139,123,255,.12);color:var(--primary);padding:3px 10px;border-radius:6px;font-size:11.5px;font-weight:700;text-transform:uppercase}
+  .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:1px 8px;font-size:11px;margin:1px 3px 1px 0}
+  .expire-ok{color:var(--dim)} .expire-soon{color:var(--orange);font-weight:600} .expire-over{color:var(--red);font-weight:600}
+  td:nth-child(6){white-space:nowrap}
+  .row-actions{display:flex;gap:6px;justify-content:flex-end;white-space:nowrap}
+  .empty{padding:60px 20px;text-align:center;color:var(--dim)}
+  .empty .big{font-size:34px;margin-bottom:10px;opacity:.5}
+  .secret-cell{display:inline-flex;align-items:center;gap:6px}
+  .mono{font-family:Consolas,Menlo,monospace;letter-spacing:1px}
+  .haspw{color:var(--muted)} .nopw{color:#3d4356}
+
+  /* ===== 模态框 ===== */
+  .overlay{position:fixed;inset:0;background:rgba(5,7,12,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .hidden{display:none!important}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:1}
+  .modal-head h3{font-size:16px}
+  .modal-body{padding:20px 22px}
+  .modal-foot{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--line)}
+  .x{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;line-height:1}
+  .x:hover{color:#fff}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+  .field label{font-size:12px;color:var(--muted);font-weight:600}
+  .field label .req{color:var(--red)}
+  .field input,.field textarea,.field select{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;color:var(--text);outline:none;font-size:13px;width:100%}
+  .field input:focus,.field textarea:focus{border-color:var(--primary)}
+  .field textarea{resize:vertical;min-height:64px}
+  .field .hint{font-size:11px;color:var(--dim)}
+  .full{grid-column:1/-1}
+  .clearrow{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:12px;color:var(--muted)}
+  .clearrow input{width:auto}
+
+  /* 密钥查看 */
+  .secret-row{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  .secret-row .lbl{font-size:12px;color:var(--muted);font-weight:600}
+  .secret-box{display:flex;gap:8px;align-items:stretch}
+  .secret-box .val{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-family:Consolas,Menlo,monospace;font-size:13px;word-break:break-all;user-select:all}
+  .secret-box .val.masked{letter-spacing:3px;color:var(--muted)}
+
+  /* 登录门 */
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100}
+  .gate .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:36px;width:360px;text-align:center}
+  .gate .logo{margin:0 auto 14px;width:52px;height:52px;font-size:20px}
+  .gate h2{margin-bottom:6px}
+  .gate p{color:var(--muted);font-size:12px;margin-bottom:20px}
+  .gate input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);outline:none;text-align:center;margin-bottom:14px}
+  .gate input:focus{border-color:var(--primary)}
+  .gate .err{color:var(--red);font-size:12px;min-height:16px;margin-bottom:8px}
+
+  /* Toast */
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:200;align-items:center}
+  .toast{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--primary);border-radius:10px;padding:10px 18px;font-size:13px;box-shadow:0 8px 30px rgba(0,0,0,.4);animation:tin .2s ease;white-space:pre-line;max-width:520px}
+  .toast.ok{border-left-color:var(--green)} .toast.err{border-left-color:var(--red)} .toast.warn{border-left-color:var(--orange)}
+  @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:var(--dim);font-size:11.5px;display:flex;justify-content:space-between}
+
+  @media (max-width:900px){
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .fgrid{grid-template-columns:1fr}
+    header{padding:14px 16px} main{padding:16px 16px 40px}
+    .tb-notes{display:none} th.tb-notes-h{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- 登录门 -->
+<div id="gate" class="gate hidden">
+  <div class="card">
+    <div class="logo">M</div>
+    <h2>muse.ai 账号管理</h2>
+    <p>此服务已启用访问令牌保护</p>
+    <div class="err" id="gateErr"></div>
+    <input type="password" id="gateToken" placeholder="输入访问令牌" autocomplete="off">
+    <button class="btn primary" style="width:100%;justify-content:center" onclick="doLogin()">进入系统</button>
+  </div>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="logo">M</div>
+    <div>
+      <h1>muse.ai 账号管理系统</h1>
+      <div class="sub">Go · 本地数据 · 密码 AES-256-GCM 加密存储</div>
+    </div>
+  </div>
+  <div class="hactions">
+    <span class="srvinfo" id="srvInfo"></span>
+    <button class="btn" id="btnInviteAll" onclick="fetchAllInvites()" title="并发刷新全部账号的邀请状态（自动刮码 + 实时次数 + 订阅/已兑换判定）">🎁 刷新邀请</button>
+    <button class="btn" id="btnCheckAll" onclick="checkAll()" title="并发体检全部账号（auth/check + 落地页）并汇总统计">🩺 一键体检</button>
+    <button class="btn" onclick="openProxy()" title="全局代理设置（访问 muse.ai 的默认代理）">⚙ 代理</button>
+    <button class="btn" onclick="exportData(false)" title="导出密文备份（换机器/恢复用）">导出备份</button>
+    <button class="btn" onclick="importClick()" title="从备份 JSON 导入">导入</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
+    <button class="btn primary" onclick="openEdit(null)">＋ 新增账号</button>
+  </div>
+</header>
+
+<main>
+  <div class="stats">
+    <div class="stat" style="--accent:#8b7bff"><div class="num" id="stTotal">0</div><div class="lbl">账号总数</div></div>
+    <div class="stat" style="--accent:#22c55e"><div class="num green" id="stActive">0</div><div class="lbl">正常可用</div></div>
+    <div class="stat" style="--accent:#ef4444"><div class="num red" id="stBad">0</div><div class="lbl">失效 / 封禁</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search"><input id="q" placeholder="搜索邮箱 / 备注 / 标签 / 邀请码…" oninput="render()"></div>
+    <select id="fStatus" onchange="render()">
+      <option value="all">全部状态</option>
+      <option value="active">正常</option>
+      <option value="expiring">临近到期</option>
+      <option value="banned">封禁</option>
+      <option value="unverified">待验证</option>
+      <option value="cooldown">冷却中</option>
+      <option value="region_limited">区域受限</option>
+    </select>
+    <select id="fPlan" onchange="render()"><option value="all">全部计划</option></select>
+    <select id="fCheck" onchange="render()">
+      <option value="all">全部体检结果</option>
+      <option value="admitted">✅ 正常</option>
+      <option value="disabled">🚫 已禁用/解除关联</option>
+      <option value="region_limited">⛔ 区域受限</option>
+      <option value="auth_expired">⌛ 登录失效</option>
+      <option value="challenge">🤖 真人验证拦截</option>
+      <option value="forbidden">⚠️ 无法判定</option>
+      <option value="none">未体检</option>
+    </select>
+    <select id="fTag" onchange="render()"><option value="all">全部标签</option></select>
+    <select id="fSort" onchange="render()">
+      <option value="created_desc">创建时间 ↓</option>
+      <option value="email_asc">邮箱 A→Z</option>
+      <option value="status_asc">按状态</option>
+      <option value="updated_desc">最近修改 ↓</option>
+    </select>
+  </div>
+
+  <div id="batchBar" class="hidden" style="position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px;padding:10px 14px;background:var(--panel2);border:1px solid var(--violet);border-radius:11px;box-shadow:0 4px 18px rgba(139,123,255,.14)">
+    <span id="selCount" style="font-size:13px;font-weight:600">已选 0 项</span>
+    <button class="btn primary" id="btnBatchRedeem" onclick="openBatchRedeem()" title="用同一个邀请码并发兑换选中账号">🎁 批量兑换</button>
+    <button class="btn" onclick="detectSelected()" title="对选中账号执行体检 + 刷新邀请码/词元">🩺 检测选定</button>
+    <button class="btn" onclick="updateSelectedInvites()" title="刷新选中账号的邀请码与词元使用状态">🎁 更新邀请/词元</button>
+    <button class="btn" onclick="clearSelection()">取消选择</button>
+    <span style="font-size:11.5px;color:var(--muted)">批量兑换将并发执行（每批 3 个，各账号独立指纹），无 Cookie 的账号自动跳过</span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th style="width:30px"><input type="checkbox" id="cbAll" title="全选/取消全选（当前筛选结果）" onchange="toggleSelectAll(this.checked)" style="accent-color:var(--violet);cursor:pointer"></th>
+        <th style="width:34px">#</th>
+        <th>账号</th>
+        <th>计划</th>
+        <th>状态</th>
+        <th>额度 / 词元</th>
+        <th class="tb-notes-h">备注 / 标签</th>
+        <th>Cookie</th>
+        <th style="text-align:right">操作</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty hidden" id="emptyBox"><div class="big">🗄</div><div id="emptyMsg">暂无账号，点击右上角「新增账号」开始</div></div>
+  </div>
+</main>
+
+<footer>
+  <span>数据仅保存在本机 data/ 目录 · accounts.json + key.bin</span>
+  <span id="footRight"></span>
+</footer>
+
+<!-- 编辑模态 -->
+<div id="mEdit" class="overlay hidden">
+  <div class="modal">
+    <div class="modal-head"><h3 id="editTitle">新增账号</h3><button class="x" onclick="closeEdit()">✕</button></div>
+    <div class="modal-body">
+      <div class="fgrid">
+        <div class="field full"><label>登录邮箱 / 用户名 <span class="req">*</span></label><input id="eEmail" placeholder="user@example.com">
+          <div class="hint">验证码接收邮箱即此邮箱（邮箱验证码登录）</div></div>
+        <div class="field"><label>请求代理（可选）</label><input id="eProxy" placeholder="http://user:pass@ip:port 或 socks5://…">
+          <div class="hint">本账号专属代理；留空则用全局「⚙ 代理」设置</div></div>
+        <div class="field"><label>订阅计划</label><select id="ePlan"><option>free</option><option>plus</option><option>pro</option><option>enterprise</option><option value="__custom">自定义…</option></select>
+          <input id="ePlanCustom" class="hidden" placeholder="输入计划名称" style="margin-top:6px"></div>
+        <div class="field"><label>状态</label><select id="eStatus"><option value="active">正常</option><option value="expiring">临近到期</option><option value="banned">封禁</option><option value="unverified">待验证</option><option value="cooldown">冷却中</option><option value="region_limited">区域受限</option></select></div>
+        <div class="field"><label>额度 / Token 余额</label><input id="eBalance" placeholder="如 310亿 Token / $5.00"></div>
+        <div class="field"><label>邀请码 / 推荐码</label><input id="eInvite" placeholder="F9YY5G，同步邀请信息时自动更新"></div>
+        <div class="field"><label>标签（逗号分隔）</label><input id="eTags" placeholder="主力号,过验证"></div>
+        <div class="field full"><label>登录 Cookie（muse.ai）　<button class="btn sm" id="btnSendOTP" onclick="sendLoginOTP()" title="向邮箱发送验证码，服务端直接登录后自动填入 Cookie">📩 验证码登录</button></label><textarea id="eCookie" placeholder="点击上方「📩 验证码登录」自动获取，或粘贴浏览器 Cookie（需含 hatch_sess=…）" style="font-family:Consolas,Menlo,monospace;font-size:12px"></textarea>
+          <div class="clearrow" id="otpPanel" style="display:none;border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:var(--panel2)">
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="otpCode" placeholder="6 位验证码" maxlength="6" style="flex:1;font-family:Consolas,monospace;letter-spacing:4px;text-align:center">
+              <button class="btn primary" id="btnVerifyOTP" onclick="verifyLoginOTP()">登录并填入</button>
+            </div>
+            <div class="hint" id="otpHint">验证码已发送至邮箱，输入邮件中的 6 位数字后点击登录</div>
+          </div>
+          <div class="clearrow" id="cookieClearRow" style="display:none"><input type="checkbox" id="eCookieClear"><span>清空已保存的 Cookie</span></div>
+          <div class="hint" id="cookieHint">用于服务端代为拉取邀请信息（加密存储）；已保存则留空表示不修改</div></div>
+        <div class="field full"><label>备注</label><textarea id="eNotes" placeholder="注册时间、验证方式、静态 IP 等补充信息"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeEdit()">取消</button>
+      <button class="btn primary" id="btnSave" onclick="saveAccount()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 密钥查看模态 -->
+<div id="mSecret" class="overlay hidden">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h3 id="sTitle">敏感信息</h3><button class="x" onclick="closeSecret()">✕</button></div>
+    <div class="modal-body">
+      <div class="secret-row" id="rowCookie"><div class="lbl">登录 Cookie</div>
+        <div class="secret-box"><div class="val mono" id="valCookie" style="max-height:96px;overflow-y:auto">••••••••••</div>
+          <button class="btn sm" onclick="toggleSecret()">显示</button>
+          <button class="btn sm" onclick="copySecret()">复制</button></div></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeSecret()">关闭</button></div>
+  </div>
+</div>
+
+<!-- 邀请信息模态 -->
+<div id="mInvite" class="overlay hidden">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-head"><h3 id="iTitle">邀请信息</h3><button class="x" onclick="closeInvite()">✕</button></div>
+    <div class="modal-body" id="iBody">
+      <div class="empty" style="padding:30px 10px"><div class="big">⌛</div><div id="iLoading">正在请求 muse.ai …</div></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeInvite()">关闭</button></div>
+  </div>
+</div>
+
+  <div id="toast"></div>
+
+<!-- 兑换邀请码模态 -->
+<div id="mRedeem" class="overlay hidden">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head"><h3 id="rTitle">兑换邀请码</h3><button class="x" onclick="closeRedeem()">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>邀请码</label><input id="rCode" placeholder="如 DEMOXY" maxlength="16" style="text-transform:uppercase;font-family:Consolas,monospace;letter-spacing:2px">
+        <div class="hint">自动执行 VM 唤醒 → 确认 → 兑换 → 取回自己的码；每账号限兑换一次</div></div>
+      <div id="rResult" style="font-size:12.5px;min-height:22px"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeRedeem()">关闭</button>
+      <button class="btn primary" id="btnRedeem" onclick="doRedeem()">兑换</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量兑换模态 -->
+<div id="mBatchRedeem" class="overlay hidden">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head"><h3>🎁 批量兑换邀请码</h3><button class="x" onclick="closeBatchRedeem()">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>邀请码（对选中账号使用同一个码）</label><input id="brCode" placeholder="如 DEMOXY" maxlength="16" style="text-transform:uppercase;font-family:Consolas,monospace;letter-spacing:2px">
+        <div class="hint">每个码默认可被兑换 30 次；并发执行（每批 3 个 · 各账号独立指纹 · 自动 VM 唤醒），无 Cookie 的账号自动跳过</div></div>
+      <div id="brTargets" style="font-size:12px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 12px;margin-top:6px;max-height:110px;overflow:auto"></div>
+      <div id="brResult" style="font-size:12.5px;margin-top:8px"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeBatchRedeem()">关闭</button>
+      <button class="btn primary" id="btnBatchDo" onclick="doBatchRedeem()">开始兑换</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量刷新邀请模态 -->
+<div id="mInviteAll" class="overlay hidden">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-head"><h3>🎁 刷新邀请状态</h3><button class="x" onclick="closeInviteAll()">✕</button></div>
+    <div class="modal-body">
+      <div id="iaResult" style="font-size:12.5px;max-height:60vh;overflow:auto"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeInviteAll()">关闭</button></div>
+  </div>
+</div>
+
+<!-- 全局代理模态 -->
+<div id="mProxy" class="overlay hidden">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-head"><h3>⚙ 全局代理</h3><button class="x" onclick="closeProxy()">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>代理地址</label><input id="pProxy" placeholder="socks5://127.0.0.1:10808 或 http://ip:port，留空=直连">
+        <div class="hint">访问 muse.ai（体检/邀请）的默认代理。优先级：账号代理 > 此处 > MUSE_PROXY 环境变量。保存后立即生效，无需重启</div></div>
+      <div id="pTest" style="font-size:12.5px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;min-height:22px"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="testProxy()">测试连接</button>
+      <button class="btn primary" onclick="saveProxy()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = {
+  token: localStorage.getItem('muse_token') || '',
+  async req(path, opts = {}) {
+    const h = Object.assign({'Content-Type':'application/json'}, opts.headers || {});
+    if (this.token) h['X-Auth-Token'] = this.token;
+    const r = await fetch(path, Object.assign({}, opts, {headers: h}));
+    const j = await r.json().catch(() => ({ok:false,error:'响应解析失败'}));
+    if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP ' + r.status));
+    return j.data;
+  }
+};
+
+let accounts = [];
+let editingId = null;      // null=新增
+let secretCtx = {id:null, cookie:''};
+let inviteCtx = null;      // 当前邀请信息
+let selectedIds = new Set(); // 表格勾选的账号（批量操作用）；筛选/刷新后保留
+const CHECK_STATE_LBL = {admitted:'✅体检正常', disabled:'🚫已禁用/解除关联', region_limited:'⛔区域受限', auth_expired:'⌛登录失效', challenge:'🤖真人验证拦截', forbidden:'⚠体检无法判定', unknown:'❓体检未知'};
+function checkStateOf(a) {  // 预解析体检结果状态；无快照返回 'none'
+  if (!a.check_info) return a.checked_at ? 'unknown' : 'none';
+  try { const c = JSON.parse(a.check_info); return c.state || 'unknown'; } catch { return 'unknown'; }
+}
+
+const $ = id => document.getElementById(id);
+const STATUS_META = {
+  active:    {label:'正常',   cls:'b-active'},
+  expiring:  {label:'临近到期', cls:'b-expiring'},
+  banned:    {label:'封禁',   cls:'b-banned'},
+  unverified:{label:'待验证', cls:'b-unverified'},
+  cooldown:  {label:'冷却中', cls:'b-cooldown'},
+  region_limited: {label:'区域受限', cls:'b-expiring'}
+};
+
+function toast(msg, type='', ms=2600) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type; t.textContent = msg;
+  $('toast').appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 320); }, ms);
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// 词元换算：muse.ai 服务端 1 单位 = 25 词元（实测 topupTotal=40000000 ↔ “10 亿个词元”）
+const TOKEN_PER_UNIT = 25;
+function fmtTokens(n) {
+  n = Number(n) || 0;
+  if (n >= 1e8) return (n / 1e8).toFixed(2).replace(/\.?0+$/, '') + ' 亿词元';
+  if (n >= 1e4) return (n / 1e4).toFixed(1).replace(/\.?0+$/, '') + ' 万词元';
+  return n.toLocaleString() + ' 词元';
+}
+
+/* ---------- 登录 ---------- */
+async function init() {
+  try {
+    const cfg = await API.req('/api/config');
+    if (cfg.auth_required && !API.token) { $('gate').classList.remove('hidden'); return; }
+    await load();
+  } catch (e) {
+    $('gate').classList.remove('hidden');
+    $('gateErr').textContent = '无法连接服务: ' + e.message;
+  }
+}
+async function doLogin() {
+  const t = $('gateToken').value.trim();
+  try {
+    await fetch('/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({token: t})})
+      .then(r => r.json()).then(j => { if (j.ok === false) throw new Error(j.error); });
+    API.token = t; localStorage.setItem('muse_token', t);
+    $('gate').classList.add('hidden'); await load();
+  } catch (e) { $('gateErr').textContent = e.message; }
+}
+$('gateToken').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+/* ---------- 数据 ---------- */
+async function load() {
+  try {
+    accounts = await API.req('/api/accounts');
+    render(); renderPlanOptions();
+    $('srvInfo').textContent = '已连接 · ' + accounts.length + ' 个账号';
+    $('footRight').textContent = '最后刷新 ' + new Date().toLocaleTimeString('zh-CN');
+  } catch (e) {
+    if (String(e.message).includes('未授权')) { $('gate').classList.remove('hidden'); return; }
+    toast('加载失败: ' + e.message, 'err');
+  }
+}
+
+function renderPlanOptions() {
+  const plans = [...new Set(accounts.map(a => a.plan).filter(Boolean))];
+  const sel = $('fPlan'), cur = sel.value;
+  sel.innerHTML = '<option value="all">全部计划</option>' + plans.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  if (plans.includes(cur)) sel.value = cur;
+  const tags = [...new Set(accounts.flatMap(a => a.tags || []).filter(Boolean))].sort();
+  const tsel = $('fTag'), tcur = tsel.value;
+  tsel.innerHTML = '<option value="all">全部标签</option>' + tags.map(t => `<option value="${esc(t)}">🏷 ${esc(t)}</option>`).join('');
+  if (tags.includes(tcur)) tsel.value = tcur;
+}
+
+function filtered() {
+  const q = $('q').value.trim().toLowerCase();
+  const fs = $('fStatus').value, fp = $('fPlan').value, sort = $('fSort').value;
+  const fc = $('fCheck').value, ft = $('fTag').value;
+  let list = accounts.filter(a => {
+    if (fs !== 'all' && a.status !== fs) return false;
+    if (fp !== 'all' && a.plan !== fp) return false;
+    if (fc !== 'all' && checkStateOf(a) !== fc) return false;
+    if (ft !== 'all' && !(a.tags || []).includes(ft)) return false;
+    if (q) {
+      const hay = [a.email, a.notes, (a.tags||[]).join(' '), a.invite_code, a.balance, a.plan].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const cmp = {
+    created_desc: (a,b) => (b.created_at||'').localeCompare(a.created_at||''),
+    updated_desc: (a,b) => (b.updated_at||'').localeCompare(a.updated_at||''),
+    email_asc:    (a,b) => a.email.localeCompare(b.email),
+    status_asc:   (a,b) => (a.status||'').localeCompare(b.status||'')
+  }[sort];
+  list.sort(cmp);
+  return list;
+}
+
+function render() {
+  const list = filtered();
+  const tb = $('tbody');
+  tb.innerHTML = list.map((a, i) => {
+    const sm = STATUS_META[a.status] || {label:a.status||'-', cls:'b-unverified'};
+    const invParts = [];
+    if (a.invite_code) invParts.push('邀请码 ' + a.invite_code);
+    if (a.last_used_at) invParts.push('使用 ' + a.last_used_at);
+    const invHtml = invParts.length ? `<div class="cell-sub" style="margin-top:1px">${esc(invParts.join(' · '))}</div>` : '';
+    // 额度列：优先展示订阅数据里的当前词元（topup 余额 × 25）；无订阅时退回手填 balance
+    let balHtml = `<span style="color:var(--dim)">${esc(a.balance || '—')}</span>`, usageLine = '';
+    if (a.invite_info) {
+      try {
+        const invJ = JSON.parse(a.invite_info);
+        const sub = invJ.subscription;
+        if (sub) {
+          const tokens = (sub.topupBalance || 0) * TOKEN_PER_UNIT;
+          if (tokens > 0) balHtml = `<b style="color:var(--violet)">${fmtTokens(tokens)}</b>`;
+          usageLine = `<div class="cell-sub">本周额度已用 ${sub.percentUsed ?? 0}%</div>`;
+        }
+      } catch {}
+    }
+    const tags = (a.tags||[]).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+    const ckDot = a.has_cookie ? '<span class="secret-cell haspw" title="Cookie已设置">◆</span>' : '<span class="nopw" title="Cookie未设置">◇</span>';
+    let invSum = '';
+    if (a.invite_info) {
+      try {
+        const inv = JSON.parse(a.invite_info);
+        if (inv.code) {
+          const rem = inv.uses_remaining ?? Math.max(0, (Number(inv.max_uses) || 0) - (Number(inv.use_count) || 0));
+          invSum = `邀请码 ${esc(inv.code)} · 剩 ${rem}/${Number(inv.max_uses) || 0} 次`;
+        }
+      } catch {}
+    }
+    const invLine = invSum ? `<div class="cell-sub" style="margin-top:1px;color:var(--violet)">🎁 ${invSum}</div>` : '';
+    let ckLine = '';
+    if (a.check_info) {
+      try {
+        const ck = JSON.parse(a.check_info);
+        const ckIcon = {admitted:'✅', region_limited:'⛔', auth_expired:'⌛', forbidden:'⚠️', disabled:'🚫', challenge:'🤖', unknown:'❓'}[ck.state] || '❓';
+        const ckLbl = {admitted:'体检正常', region_limited:'区域受限', auth_expired:'登录失效', forbidden:'体检无法判定', disabled:'已禁用/解除关联', challenge:'真人验证拦截', unknown:'体检未知'}[ck.state] || ck.state;
+        ckLine = `<div class="cell-sub" style="margin-top:1px">${ckIcon} ${esc(ckLbl)}${a.checked_at ? ' · ' + esc(a.checked_at.slice(5, 16)) : ''}</div>`;
+      } catch {}
+    }
+    let rdLine = '';
+    if (a.redeem_info) {
+      try {
+        const rd = JSON.parse(a.redeem_info);
+        if (rd.state === 'redeemed') {
+          rdLine = `<div class="cell-sub" style="margin-top:1px;color:var(--green)">✅ 已兑换${rd.own_code ? ' · 自己的码 ' + esc(rd.own_code) : ''}${a.redeemed_at ? ' · ' + esc(a.redeemed_at.slice(5, 16)) : ''}</div>`;
+        } else {
+          const rdLbl = {already_redeemed:'已兑过', used_up:'码用尽', invalid:'码无效', auth_expired:'登录失效', region_limited:'区域受限', error:'唤醒失败'}[rd.state] || rd.state;
+          rdLine = `<div class="cell-sub" style="margin-top:1px;color:var(--dim)">🎫 兑换: ${esc(rdLbl)}${a.redeemed_at ? ' · ' + esc(a.redeemed_at.slice(5, 16)) : ''}</div>`;
+        }
+      } catch {}
+    }
+    return `<tr>
+      <td><input type="checkbox" ${selectedIds.has(a.id) ? 'checked' : ''} onchange="toggleSelect('${a.id}', this.checked)" title="选中以批量兑换" style="accent-color:var(--violet);cursor:pointer"></td>
+      <td style="color:var(--dim)">${i+1}</td>
+      <td><div class="email">${esc(a.email)}</div><div class="cell-sub">${invHtml}${invLine}${ckLine}${rdLine}</div></td>
+      <td><span class="plan-badge">${esc(a.plan || '-')}</span></td>
+      <td><span class="badge ${sm.cls}"><span class="dot"></span>${sm.label}</span></td>
+      <td>${balHtml}${usageLine}</td>
+      <td class="tb-notes"><div class="cell-sub" style="max-width:220px;white-space:normal">${esc(a.notes || '')}</div>${tags}</td>
+      <td><span title="Cookie${a.has_cookie?'已设置':'未设置'}">${ckDot}</span></td>
+      <td><div class="row-actions">
+        <button class="btn sm" onclick="checkStatus('${a.id}')" title="准入体检（auth/check）">🩺 体检</button>
+        <button class="btn sm" onclick="openRedeem('${a.id}')" title="兑换邀请码（自动 VM 唤醒）">🎫 兑换</button>
+        <button class="btn sm" onclick="viewInvite('${a.id}')" title="拉取/查看邀请信息">🎁 邀请</button>
+        <button class="btn sm" onclick="viewSecret('${a.id}')" title="查看 Cookie">🔑 查看</button>
+        <button class="btn sm" onclick="openEdit('${a.id}')">编辑</button>
+        <button class="btn sm danger" onclick="delAccount('${a.id}')">删除</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  $('emptyBox').classList.toggle('hidden', list.length > 0);
+  if (list.length === 0 && accounts.length > 0) $('emptyMsg').textContent = '没有匹配的账号，试试调整搜索或筛选条件';
+  else if (list.length === 0) $('emptyMsg').textContent = '暂无账号，点击右上角「新增账号」开始';
+
+  // 统计
+  $('stTotal').textContent = accounts.length;
+  $('stActive').textContent = accounts.filter(a => a.status === 'active').length;
+  $('stBad').textContent = accounts.filter(a => a.status === 'banned' || a.status === 'unverified').length;
+
+  // 多选状态同步：剔除已删除账号；刷新全选框与批量操作浮条
+  for (const id of [...selectedIds]) if (!accounts.find(a => a.id === id)) selectedIds.delete(id);
+  $('cbAll').checked = list.length > 0 && list.every(a => selectedIds.has(a.id));
+  $('selCount').textContent = `已选 ${selectedIds.size} 项`;
+  $('btnBatchRedeem').disabled = selectedIds.size === 0;
+  $('batchBar').classList.toggle('hidden', selectedIds.size === 0);
+}
+
+/* ---------- 批量刷新邀请状态 ---------- */
+let inviteAllBusy = false;
+function closeInviteAll() { $('mInviteAll').classList.add('hidden'); }
+async function fetchAllInvites(ids) {
+  if (inviteAllBusy) { toast('邀请刷新进行中，请稍候…', 'warn'); return; }
+  inviteAllBusy = true;
+  const selMode = ids && ids.length > 0;
+  const scope = selMode ? `选中的 ${ids.length} 个账号` : '全部账号';
+  const btn = $('btnInviteAll');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ 刷新中…';
+  $('iaResult').innerHTML = `⏳ 正在并发刷新${scope}的邀请状态（每批 3 个，自动刮码 + 订阅查询，预计 ${Math.max(5, Math.ceil((selMode ? ids.length : accounts.length) / 3) * 6)} 秒左右）…`;
+  $('mInviteAll').classList.remove('hidden');
+  try {
+    const body = selMode ? JSON.stringify({ids}) : '{}';
+    const d = await API.req('/api/accounts/fetch-invite-all', {method:'POST', body});
+    const s = d.summary;
+    const parts = [];
+    if (s.refreshed) parts.push(`✅成功 ${s.refreshed}`);
+    if (s.acquired) parts.push(`🆕新刮码 ${s.acquired}`);
+    if (s.exhausted) parts.push(`📭额度用尽 ${s.exhausted}`);
+    if (s.failed) parts.push(`❌失败 ${s.failed}`);
+    if (s.skipped) parts.push(`⏭跳过 ${s.skipped}`);
+    const stat = `邀请刷新完成（共 ${s.total}）：${parts.join(' · ') || '无账号'}`;
+    const icon = r => r.ok ? (r.has_redeemed ? '🔥' : '✅') : (r.skipped ? '⏭' : (String(r.error || '').includes('额度已用尽') ? '📭' : '❌'));
+    const rows = (d.results || []).map(r => {
+      const codeCell = r.ok ? `<b class="mono">${esc(r.code || '—')}</b>${r.new_code ? ' <span style="color:var(--green);font-size:11px">🆕首次刮开</span>' : ''}` : '—';
+      const useCell = r.ok ? `${r.use_count ?? 0}/${r.max_uses ?? 0}（剩 ${r.uses_remaining ?? 0}）` : '—';
+      const redeCell = r.ok ? (r.sub_synced ? (r.has_redeemed ? '<b style="color:var(--orange)">是</b>' : '<span style="color:var(--green)">否</span>') : '<span style="color:var(--dim)">未同步</span>') : '—';
+      const stCell = r.ok ? `<span style="color:var(--green)">${esc(r.invite_state || 'OK')}</span>` : (r.skipped ? '<span style="color:var(--dim)">跳过</span>' : `<span style="color:var(--red)" title="${esc(r.error)}">${esc((r.error || '失败').slice(0, 60))}</span>`);
+      return `<tr><td style="padding:4px 6px">${icon(r)} ${esc(r.email || r.id)}</td><td style="padding:4px 6px">${codeCell}</td><td style="padding:4px 6px">${useCell}</td><td style="padding:4px 6px">已兑换他人码 ${redeCell}</td><td style="padding:4px 6px">${stCell}</td></tr>`;
+    }).join('');
+    $('iaResult').innerHTML = `<div style="color:${s.failed + s.exhausted > 0 ? 'var(--orange)' : 'var(--green)'};font-weight:600;margin-bottom:10px">${esc(stat)}</div>` +
+      '<table style="width:100%;border-collapse:collapse;font-size:11.5px"><tr style="color:var(--muted);text-align:left"><th style="padding:4px 6px">账号</th><th style="padding:4px 6px">邀请码</th><th style="padding:4px 6px">已用/总量</th><th style="padding:4px 6px">兑换状态</th><th style="padding:4px 6px">状态</th></tr>' + rows + '</table>' +
+      '<div style="color:var(--dim);font-size:11px;margin-top:8px">💡 兑换状态依据订阅加购/邀请奖励额度（可靠信号）；首次刮码的账号会当场生成新码。</div>';
+    toast(stat, s.failed + s.exhausted > 0 ? 'warn' : 'ok', 10000);
+    await load();
+  } catch (e) {
+    $('iaResult').innerHTML = '<span style="color:var(--red)">❌ ' + esc(e.message) + '</span>';
+    toast('邀请刷新失败: ' + e.message, 'err', 8000);
+  } finally {
+    inviteAllBusy = false; btn.disabled = false; btn.textContent = old;
+  }
+}
+
+/* ---------- 选定账号检测 / 更新邀请与词元 ---------- */
+let detectSelBusy = false;
+function updateSelectedInvites() {
+  if (selectedIds.size === 0) { toast('请先勾选账号', 'warn'); return; }
+  return fetchAllInvites([...selectedIds]);
+}
+async function detectSelected() {
+  if (detectSelBusy) { toast('检测进行中，请稍候…', 'warn'); return; }
+  const ids = [...selectedIds];
+  if (ids.length === 0) { toast('请先勾选账号', 'warn'); return; }
+  detectSelBusy = true;
+  toast(`检测中：体检 + 邀请码/词元（${ids.length} 个，约 15~30 秒）…`, '', 8000);
+  try {
+    const ck = await API.req('/api/accounts/check-all', {method:'POST', body: JSON.stringify({ids})});
+    const iv = await API.req('/api/accounts/fetch-invite-all', {method:'POST', body: JSON.stringify({ids})});
+    const cs = ck.summary, is = iv.summary;
+    const p1 = [];
+    if (cs.admitted)       p1.push(`✅正常 ${cs.admitted}`);
+    if (cs.disabled)       p1.push(`🚫禁用 ${cs.disabled}`);
+    if (cs.region_limited) p1.push(`⛔区域受限 ${cs.region_limited}`);
+    if (cs.auth_expired)   p1.push(`⌛登录失效 ${cs.auth_expired}`);
+    if (cs.challenge)      p1.push(`🤖真人验证 ${cs.challenge}`);
+    if (cs.forbidden)      p1.push(`⚠无法判定 ${cs.forbidden}`);
+    if (cs.skipped)        p1.push(`⏭跳过 ${cs.skipped}`);
+    const p2 = [];
+    if (is.refreshed) p2.push(`邀请码 ${is.refreshed}`);
+    if (is.acquired)  p2.push(`🆕新刮码 ${is.acquired}`);
+    if (is.exhausted) p2.push(`📭额度用尽 ${is.exhausted}`);
+    if (is.failed)    p2.push(`❌邀请失败 ${is.failed}`);
+    toast(`检测完成（${ids.length} 个）：${p1.join(' · ')}｜${p2.join(' · ')}`, 'ok', 12000);
+    await load();
+  } catch (e) {
+    toast('检测失败: ' + e.message, 'err', 8000);
+  } finally {
+    detectSelBusy = false;
+  }
+}
+
+/* ---------- 多选与批量兑换 ---------- */
+function toggleSelect(id, checked) {
+  if (checked) selectedIds.add(id); else selectedIds.delete(id);
+  render();
+}
+function toggleSelectAll(checked) {
+  const list = filtered();
+  if (checked) list.forEach(a => selectedIds.add(a.id));
+  else list.forEach(a => selectedIds.delete(a.id));
+  render();
+}
+function clearSelection() { selectedIds.clear(); render(); }
+
+function closeBatchRedeem() { $('mBatchRedeem').classList.add('hidden'); }
+function openBatchRedeem() {
+  if (selectedIds.size === 0) { toast('请先勾选账号（表格第一列）', 'warn'); return; }
+  const targets = accounts.filter(a => selectedIds.has(a.id));
+  const withCk = targets.filter(a => a.has_cookie).length;
+  $('brCode').value = '';
+  $('brResult').innerHTML = '';
+  $('btnBatchDo').disabled = false;
+  $('brTargets').innerHTML = `目标 ${targets.length} 个账号${withCk < targets.length ? `（其中 ${targets.length - withCk} 个无 Cookie 将自动跳过）` : ''}：<br>` +
+    targets.map(a => esc(a.email) + (a.has_cookie ? '' : ' <span style="color:var(--orange)">（无 Cookie，将跳过）</span>')).join('，');
+  $('mBatchRedeem').classList.remove('hidden');
+  setTimeout(() => $('brCode').focus(), 50);
+}
+async function doBatchRedeem() {
+  const code = $('brCode').value.trim().toUpperCase();
+  if (!code) { $('brResult').innerHTML = '<span style="color:var(--orange)">请输入邀请码</span>'; return; }
+  if (selectedIds.size === 0) { toast('请先勾选账号', 'warn'); return; }
+  const ids = [...selectedIds];
+  $('btnBatchDo').disabled = true;
+  $('brResult').innerHTML = `⏳ 正在并发兑换 ${ids.length} 个账号（每批 3 个，预计 ${Math.max(3, Math.ceil(ids.length / 3) * 4)}~${Math.ceil(ids.length / 3) * 12} 秒）…`;
+  try {
+    const d = await API.req('/api/accounts/redeem-batch', {method:'POST', body: JSON.stringify({code, ids})});
+    const s = d.summary;
+    const parts = [];
+    if (s.succeeded)       parts.push(`✅成功 ${s.succeeded}`);
+    if (s.already_redeemed) parts.push(`🎫已兑过 ${s.already_redeemed}`);
+    if (s.used_up)        parts.push(`🧾码用尽 ${s.used_up}`);
+    if (s.invalid)        parts.push(`❌码无效 ${s.invalid}`);
+    if (s.auth_expired)   parts.push(`⌛登录失效 ${s.auth_expired}`);
+    if (s.region_limited) parts.push(`⛔区域受限 ${s.region_limited}`);
+    if (s.failed)         parts.push(`💥失败 ${s.failed}`);
+    if (s.skipped)        parts.push(`⏭跳过 ${s.skipped}`);
+    const stat = `批量兑换完成（共 ${s.total}）：${parts.join(' · ') || '无结果'}`;
+    const clr = s.succeeded > 0 ? 'var(--green)' : (s.failed + s.invalid > 0 ? 'var(--red)' : 'var(--orange)');
+    $('brResult').innerHTML = `<div style="color:${clr};font-weight:600;margin-bottom:8px">${esc(stat)}</div>` +
+      '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+      '<tr style="color:var(--muted);text-align:left"><th style="padding:3px 6px">账号</th><th style="padding:3px 6px">结果</th><th style="padding:3px 6px">说明</th></tr>' +
+      (d.results || []).map(r => {
+        const icon = r.state === 'redeemed' ? '✅' : (r.skipped || r.error ? '⚠' : '❌');
+        const sdTxt = r.ok ? (esc(r.detail || r.state) + (r.own_code ? ' · 自己的码 <b>' + esc(r.own_code) + '</b>' : '')) : esc(r.error || '失败');
+        return `<tr><td style="padding:3px 6px">${esc(r.email || r.id)}</td><td style="padding:3px 6px">${icon} ${esc(r.state || (r.skipped ? 'skipped' : 'error'))}</td><td style="padding:3px 6px">${sdTxt}</td></tr>`;
+      }).join('') + '</table>';
+    toast(stat, s.succeeded > 0 ? 'ok' : 'warn', 12000);
+    await load();
+  } catch (e) {
+    $('brResult').innerHTML = '<span style="color:var(--red)">❌ ' + esc(e.message) + '</span>';
+    toast('批量兑换失败: ' + e.message, 'err', 8000);
+  } finally {
+    $('btnBatchDo').disabled = false;
+  }
+}
+$('brCode').addEventListener('keydown', e => { if (e.key === 'Enter' && !$('btnBatchDo').disabled) doBatchRedeem(); });
+
+/* ---------- 新增 / 编辑 ---------- */
+function openEdit(id) {
+  editingId = id;
+  const a = id ? accounts.find(x => x.id === id) : null;
+  $('editTitle').textContent = a ? '编辑账号' : '新增账号';
+  $('eEmail').value = a ? a.email : '';
+  $('eCookie').value = '';
+  $('eCookieClear').checked = false;
+  resetOTPPanel();
+  const hasCk = a && a.has_cookie;
+  $('cookieClearRow').style.display = hasCk ? 'flex' : 'none';
+  $('cookieHint').textContent = hasCk ? '已保存则留空表示不修改' : '用于服务端代为拉取邀请信息（加密存储）';
+  const plan = a ? (a.plan || 'free') : 'free';
+  const known = ['free','plus','pro','enterprise'];
+  if (known.includes(plan)) { $('ePlan').value = plan; $('ePlanCustom').classList.add('hidden'); }
+  else { $('ePlan').value = '__custom'; $('ePlanCustom').classList.remove('hidden'); $('ePlanCustom').value = plan; }
+  $('eStatus').value = a ? (a.status || 'active') : 'active';
+  $('eBalance').value = a ? a.balance : '';
+  $('eProxy').value = a ? a.proxy : '';
+  $('eInvite').value = a ? a.invite_code : '';
+  $('eTags').value = a && a.tags ? a.tags.join(', ') : '';
+  $('eNotes').value = a ? a.notes : '';
+  $('mEdit').classList.remove('hidden');
+  setTimeout(() => $('eEmail').focus(), 50);
+}
+function closeEdit() { $('mEdit').classList.add('hidden'); }
+
+/* ---------- 验证码登录取 Cookie ---------- */
+let otpSessionId = null;
+let otpSendBusy = false;
+function resetOTPPanel() {
+  otpSessionId = null;
+  $('otpPanel').style.display = 'none';
+  $('otpCode').value = '';
+  $('btnSendOTP').disabled = false;
+  $('btnSendOTP').textContent = '📩 验证码登录';
+  $('btnVerifyOTP').disabled = false;
+}
+async function sendLoginOTP() {
+  if (otpSendBusy) return;
+  const email = $('eEmail').value.trim();
+  if (!email || !email.includes('@')) { toast('请先在上方填写邮箱地址', 'err'); return; }
+  otpSendBusy = true;
+  $('btnSendOTP').disabled = true;
+  $('btnSendOTP').textContent = '⏳ 发送中…';
+  try {
+    const d = await API.req('/api/login/send-otp', {method:'POST', body: JSON.stringify({email, proxy: $('eProxy').value.trim()})});
+    otpSessionId = d.session_id;
+    $('otpPanel').style.display = 'flex';
+    $('otpHint').textContent = d.has_muse_account
+      ? '验证码已发送至 ' + email + '（服务端确认该邮箱已有 muse 账号）'
+      : '验证码已发送至 ' + email + '（注意：服务端未发现该邮箱的 muse 账号，登录可能无法完成）';
+    $('btnSendOTP').textContent = '📩 已发送，重新发送';
+    toast('验证码已发送，请查收邮箱', 'ok');
+    setTimeout(() => $('otpCode').focus(), 80);
+  } catch (e) {
+    toast('发送失败: ' + e.message, 'err', 6000);
+    $('btnSendOTP').textContent = '📩 验证码登录';
+  } finally {
+    otpSendBusy = false;
+    $('btnSendOTP').disabled = false;
+  }
+}
+async function verifyLoginOTP() {
+  if (!otpSessionId) { toast('请先发送验证码', 'err'); return; }
+  const code = $('otpCode').value.trim();
+  if (code.length !== 6) { toast('请输入 6 位验证码', 'err'); return; }
+  $('btnVerifyOTP').disabled = true;
+  $('btnVerifyOTP').textContent = '⏳ 登录中…';
+  try {
+    const d = await API.req('/api/login/verify', {method:'POST', body: JSON.stringify({session_id: otpSessionId, code})});
+    $('eCookie').value = d.cookie;
+    $('otpPanel').style.display = 'none';
+    $('btnSendOTP').textContent = '📩 重新登录';
+    toast(`登录成功！已自动填入 Cookie（hatch_sess ${d.hatch_sess_len} 字符）`, 'ok', 6000);
+  } catch (e) {
+    toast('登录失败: ' + e.message, 'err', 6000);
+    $('otpHint').textContent = '登录失败：' + e.message;
+  } finally {
+    $('btnVerifyOTP').disabled = false;
+    $('btnVerifyOTP').textContent = '登录并填入';
+  }
+}
+$('otpCode').addEventListener('keydown', e => { if (e.key === 'Enter' && !$('btnVerifyOTP').disabled) verifyLoginOTP(); });
+$('ePlan').addEventListener('change', () => {
+  $('ePlanCustom').classList.toggle('hidden', $('ePlan').value !== '__custom');
+});
+
+async function saveAccount() {
+  const email = $('eEmail').value.trim();
+  if (!email) { toast('登录邮箱不能为空', 'err'); return; }
+  const plan = $('ePlan').value === '__custom' ? $('ePlanCustom').value.trim() : $('ePlan').value;
+  const body = {
+    email,
+    login_type: 'email_code', // 唯一登录方式：邮箱验证码（即登录邮箱）
+    plan: plan || 'free',
+    status: $('eStatus').value,
+    balance: $('eBalance').value.trim(),
+    invite_code: $('eInvite').value.trim(),
+    tags: $('eTags').value.split(',').map(s => s.trim()).filter(Boolean),
+    notes: $('eNotes').value.trim()
+  };
+  const ck = $('eCookie').value;
+  const bodyExtra = { proxy: $('eProxy').value.trim() };
+  if (editingId) {
+    body.cookie = $('eCookieClear').checked ? '__CLEAR__' : ck;
+    Object.assign(body, bodyExtra);
+    try { await API.req('/api/accounts/' + editingId, {method:'PUT', body: JSON.stringify(body)});
+      toast('已保存修改', 'ok'); closeEdit(); await load();
+    } catch (e) { toast(e.message, 'err'); }
+  } else {
+    body.cookie = ck;
+    Object.assign(body, bodyExtra);
+    try {
+      const created = await API.req('/api/accounts', {method:'POST', body: JSON.stringify(body)});
+      toast('账号已添加', 'ok'); closeEdit(); await load();
+      // 新增成功后自动检测：账号状态（体检）+ 邀请码/兑换状态/次数 + 词元额度
+      if (created && created.id) autoDetectAccount(created.id);
+    } catch (e) { toast(e.message, 'err'); }
+  }
+}
+
+// 新增账号自动检测（并行体检 + 拉取邀请），完成后 toast 汇总
+async function autoDetectAccount(id) {
+  toast('已添加，正在自动检测账号状态与邀请信息…', 'ok', 6000);
+  const res = {};
+  await Promise.allSettled([
+    API.req(`/api/accounts/${id}/check-status`, {method:'POST'}).then(d => { res.check = d.admission; }).catch(e => { res.checkErr = e.message; }),
+    API.req(`/api/accounts/${id}/fetch-invite`, {method:'POST'}).then(d => { res.inv = d.invite; }).catch(e => { res.invErr = e.message; })
+  ]);
+  const parts = [];
+  if (res.check) parts.push(`状态 ${res.check.state}`);
+  if (res.inv) {
+    parts.push(`邀请码 ${res.inv.code || '无'}（${res.inv.use_count ?? 0}/${res.inv.max_uses ?? 0} 次）`);
+    if (res.inv.subscription) parts.push(`词元 ${fmtTokens((res.inv.subscription.topupBalance || 0) * TOKEN_PER_UNIT)}`);
+  }
+  const errs = [];
+  if (res.checkErr) errs.push('体检: ' + res.checkErr);
+  if (res.invErr) errs.push('邀请: ' + res.invErr);
+  toast('自动检测完成：' + (parts.join(' · ') || '无结果') + (errs.length ? `（未完成 ${errs.join('；').slice(0, 90)}）` : ''), parts.length ? 'ok' : 'warn', 10000);
+  await load();
+}
+
+/* ---------- 准入体检 ---------- */
+async function checkStatus(id) {
+  const a = accounts.find(x => x.id === id);
+  if (!a) return;
+  toast('体检中：正在调用 auth/check …');
+  try {
+    const d = await API.req(`/api/accounts/${id}/check-status`, {method:'POST'});
+    const ad = d.admission;
+    const msg = `准入状态 [${ad.state}] ${ad.detail}` + (d.status_updated ? `\n账号状态已更新 → ${d.status_updated}` : '\n账号状态保持不变');
+    toast(msg, ad.state === 'admitted' ? 'ok' : (ad.state === 'region_limited' ? 'warn' : 'err'), 7000);
+    await load();
+  } catch (e) { toast('体检失败: ' + e.message, 'err', 7000); }
+}
+
+/* ---------- 一键体检 ---------- */
+let checkAllBusy = false;
+async function checkAll() {
+  if (checkAllBusy) { toast('一键体检进行中，请稍候…', 'warn'); return; }
+  checkAllBusy = true;
+  const btn = $('btnCheckAll');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ 体检中…';
+  toast('一键体检：正在并发检测全部账号（每批 3 个，约 10~40 秒）…');
+  try {
+    const d = await API.req('/api/accounts/check-all', {method:'POST'});
+    await load();
+    const s = d.summary;
+    const parts = [];
+    if (s.admitted)      parts.push(`✅正常 ${s.admitted}`);
+    if (s.region_limited) parts.push(`⛔区域受限 ${s.region_limited}`);
+    if (s.disabled)      parts.push(`🚫已禁用 ${s.disabled}`);
+    if (s.auth_expired)  parts.push(`⌛登录失效 ${s.auth_expired}`);
+    if (s.challenge)     parts.push(`🤖真人验证 ${s.challenge}`);
+    if (s.forbidden)     parts.push(`⚠️无法判定 ${s.forbidden}`);
+    if (s.unknown)       parts.push(`❓未知 ${s.unknown}`);
+    if (s.skipped)       parts.push(`⏭跳过 ${s.skipped}`);
+    if (s.failed)        parts.push(`❌失败 ${s.failed}`);
+    const msg = `一键体检完成（共 ${s.total}，已检 ${s.checked}）：${parts.join(' · ') || '无账号'}`;
+    const bad = s.disabled + s.region_limited + s.auth_expired + s.challenge + s.forbidden + s.unknown + s.failed + s.skipped;
+    toast(msg, bad === 0 ? 'ok' : 'warn', 12000);
+    // 异常账号明细（逐条 toast，最多 3 条避免刷屏；完整明细在列表状态列可见）
+    const badList = (d.results || []).filter(r => (r.ok && r.state && r.state !== 'admitted') || (!r.ok && !r.skipped));
+    badList.slice(0, 3).forEach(r => {
+      toast(`${r.email}：${r.ok ? '[' + r.state + '] ' + (r.detail || '') : (r.error || '失败')}`, 'err', 9000);
+    });
+    if (badList.length > 3) toast(`…另有 ${badList.length - 3} 个异常账号，详见列表状态列`, 'warn', 8000);
+  } catch (e) {
+    toast('一键体检失败: ' + e.message, 'err', 8000);
+  } finally {
+    checkAllBusy = false; btn.disabled = false; btn.textContent = old;
+  }
+}
+
+/* ---------- 兑换邀请码 ---------- */
+let redeemCtx = null;
+function closeRedeem() { $('mRedeem').classList.add('hidden'); }
+function openRedeem(id) {
+  const a = accounts.find(x => x.id === id);
+  if (!a) return;
+  redeemCtx = id;
+  $('rTitle').textContent = a.email + ' · 兑换邀请码';
+  $('rCode').value = '';
+  $('rResult').innerHTML = a.redeem_info
+    ? (() => { try { const rd = JSON.parse(a.redeem_info); return '上次结果：[' + esc(rd.state) + '] ' + esc(rd.detail) + (a.redeemed_at ? '（' + esc(a.redeemed_at) + '）' : ''); } catch { return ''; } })()
+    : '';
+  $('btnRedeem').disabled = false;
+  $('mRedeem').classList.remove('hidden');
+  setTimeout(() => $('rCode').focus(), 50);
+}
+async function doRedeem() {
+  if (!redeemCtx) return;
+  const code = $('rCode').value.trim().toUpperCase();
+  if (!code) { $('rResult').innerHTML = '<span style="color:var(--orange)">请输入邀请码</span>'; return; }
+  $('btnRedeem').disabled = true;
+  $('rResult').innerHTML = '⏳ 正在执行兑换链（VM 唤醒 → 确认 → 兑换，约 3-15 秒）…';
+  try {
+    const d = await API.req(`/api/accounts/${redeemCtx}/redeem`, {method:'POST', body: JSON.stringify({code})});
+    const rd = d.redeem;
+    const good = rd.state === 'redeemed';
+    $('rResult').innerHTML = (good ? '<span style="color:var(--green)">✅ ' : '<span style="color:var(--red)">❌ ') +
+      esc(rd.detail) + (rd.vm_id ? '<br><span style="color:var(--dim);font-size:11px">VM ' + esc(rd.vm_id) + '</span>' : '') + '</span>' +
+      (d.status_updated ? '<br><span style="color:var(--dim);font-size:11px">账号状态 → ' + esc(d.status_updated) + '</span>' : '');
+    toast(`兑换 [${rd.state}] ${rd.detail}`, good ? 'ok' : 'err', 7000);
+    await load();
+  } catch (e) {
+    $('rResult').innerHTML = '<span style="color:var(--red)">❌ ' + esc(e.message) + '</span>';
+    toast('兑换失败: ' + e.message, 'err', 7000);
+  } finally {
+    $('btnRedeem').disabled = false;
+  }
+}
+$('rCode').addEventListener('keydown', e => { if (e.key === 'Enter' && !$('btnRedeem').disabled) doRedeem(); });
+
+/* ---------- 全局代理 ---------- */
+function closeProxy() { $('mProxy').classList.add('hidden'); }
+async function openProxy() {
+  try {
+    const st = await API.req('/api/settings');
+    $('pProxy').value = st.proxy || '';
+    $('pTest').innerHTML = st.effective
+      ? '当前生效：<span class="mono">' + esc(st.effective) + '</span>' + (st.proxy ? '' : '（来自环境变量 MUSE_PROXY）')
+      : '当前未设置代理（直连）';
+  } catch (e) { $('pTest').textContent = '读取设置失败: ' + e.message; }
+  $('mProxy').classList.remove('hidden');
+}
+async function saveProxy() {
+  try {
+    await API.req('/api/settings', {method:'PUT', body: JSON.stringify({proxy: $('pProxy').value.trim()})});
+    toast('全局代理已保存，立即生效', 'ok'); closeProxy();
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function testProxy() {
+  const p = $('pProxy').value.trim();
+  $('pTest').innerHTML = '⏳ 正在测试连通性…';
+  try {
+    const d = await API.req('/api/settings/test-proxy', {method:'POST', body: JSON.stringify({proxy: p})});
+    if (d.error) $('pTest').innerHTML = '<span style="color:var(--red)">❌ ' + esc(d.error) + '</span>';
+    else $('pTest').innerHTML = '<span style="color:var(--green)">✅ 可连通 muse.ai</span> · HTTP ' + d.status + ' · 延迟 ' + d.latency_ms + 'ms' + (d.proxy ? ' · 经 ' + esc(d.proxy) : ' · 直连');
+  } catch (e) { $('pTest').innerHTML = '<span style="color:var(--red)">❌ ' + esc(e.message) + '</span>'; }
+}
+
+/* ---------- 删除 ---------- */
+async function delAccount(id) {
+  const a = accounts.find(x => x.id === id);
+  if (!confirm('确认删除账号「' + (a ? a.email : id) + '」？\n删除后不可恢复。')) return;
+  try { await API.req('/api/accounts/' + id, {method:'DELETE'}); toast('已删除', 'ok'); await load(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+/* ---------- 密钥查看 ---------- */
+async function viewSecret(id) {
+  const a = accounts.find(x => x.id === id);
+  if (!a) return;
+  secretCtx = {id, cookie:''};
+  $('sTitle').textContent = a.email + ' · 登录 Cookie';
+  $('rowCookie').style.display = a.has_cookie ? 'flex' : 'none';
+  $('valCookie').textContent = '••••••••••'; $('valCookie').classList.add('masked'); $('valCookie').dataset.shown = '0';
+  $('mSecret').classList.remove('hidden');
+  // 预取
+  if (a.has_cookie) API.req(`/api/accounts/${id}/secret?field=cookie`).then(d => secretCtx.cookie = d.value).catch(()=>{});
+  API.req(`/api/accounts/${id}/touch`, {method:'POST'}).catch(()=>{});
+}
+function closeSecret() { $('mSecret').classList.add('hidden'); }
+async function toggleSecret() {
+  const valEl = $('valCookie');
+  const btn = valEl.parentElement.querySelectorAll('button')[0];
+  if (valEl.dataset.shown === '1') {
+    valEl.textContent = '••••••••••'; valEl.classList.add('masked'); valEl.dataset.shown = '0'; btn.textContent = '显示';
+  } else {
+    let v = secretCtx.cookie;
+    if (!v) {
+      try { const d = await API.req(`/api/accounts/${secretCtx.id}/secret?field=cookie`);
+        secretCtx.cookie = d.value; v = d.value;
+      } catch (e) { toast(e.message, 'err'); return; }
+    }
+    valEl.textContent = v;
+    valEl.classList.remove('masked'); valEl.dataset.shown = '1'; btn.textContent = '隐藏';
+  }
+}
+async function copySecret() {
+  let val = secretCtx.cookie || await API.req(`/api/accounts/${secretCtx.id}/secret?field=cookie`).then(d => d.value).catch(() => '');
+  if (!val) { toast('该字段为空', 'warn'); return; }
+  try { await navigator.clipboard.writeText(val); toast('已复制到剪贴板', 'ok'); }
+  catch { const ta = document.createElement('textarea'); ta.value = val; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('已复制', 'ok'); }
+}
+
+/* ---------- 邀请信息 ---------- */
+function closeInvite() { $('mInvite').classList.add('hidden'); }
+async function viewInvite(id, resync) {
+  const a = accounts.find(x => x.id === id);
+  if (!a) return;
+  $('iTitle').textContent = a.email + ' · 邀请信息';
+  if (!resync && a.invite_info) {
+    try { renderInvite(JSON.parse(a.invite_info), a.invite_synced_at, id, false); $('mInvite').classList.remove('hidden'); return; } catch {}
+  }
+  $('mInvite').classList.remove('hidden');
+  $('iBody').innerHTML = '<div class="empty" style="padding:30px 10px"><div class="big">⌛</div><div>正在请求 muse.ai …（约 1-20 秒）</div></div>';
+  try {
+    const d = await API.req(`/api/accounts/${id}/fetch-invite`, {method:'POST'});
+    renderInvite(Object.assign({}, d.invite, {publishable_key: d.publishable_key || (d.invite && d.invite.publishable_key)}), d.synced_at, id, true);
+    await load();
+  } catch (e) {
+    $('iBody').innerHTML = `<div class="empty" style="padding:26px 10px"><div class="big">⚠️</div><div style="color:var(--red)">${esc(e.message)}</div><div style="margin-top:10px;color:var(--dim);font-size:12px">常见原因：① 登录 Cookie 已过期或触发真人验证（需在浏览器完成验证）　② 账号邀请额度已用尽　③ 代理不可用（右上角「⚙ 代理」可测试）</div><button class="btn primary" style="margin:16px auto 0;display:inline-flex" onclick="viewInvite('${id}', true)">重试</button></div>`;
+  }
+}
+function renderInvite(inv, syncedAt, id, fresh) {
+  inviteCtx = inv;
+  const stMeta = {ELIGIBLE:{l:'可邀请', c:'b-active'}, EXHAUSTED:{l:'额度用尽', c:'b-expiring'}, NOT_ELIGIBLE:{l:'不可邀请', c:'b-banned'}, INELIGIBLE:{l:'不可邀请', c:'b-banned'}}[inv.invite_state] || {l:inv.invite_state || '-', c:'b-unverified'};
+  const pct = inv.max_uses > 0 ? Math.round(inv.use_count / inv.max_uses * 100) : 0;
+  $('iBody').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span class="badge ${stMeta.c}"><span class="dot"></span>${esc(stMeta.l)}</span>
+      <span style="font-size:11px;color:var(--dim)">${fresh ? '刚刚同步' : '同步于 ' + esc(syncedAt || '未知')}</span>
+    </div>
+    <div style="text-align:center;padding:6px 0 14px">
+      <div style="font-size:12px;color:var(--muted)">${esc(inv.title || '邀请好友，获得额外使用额度')}</div>
+      <div style="font-size:30px;font-weight:800;letter-spacing:5px;color:var(--primary);font-family:Consolas,monospace;margin:6px 0">${esc(inv.code || '—')}</div>
+      <button class="btn sm primary" onclick="copyText(inviteCtx.code || '')">复制邀请码</button>
+      <button class="btn sm" onclick="copyText(inviteCtx.share_text || '')" ${inv.share_text ? '' : 'disabled'}>复制分享文案</button>
+    </div>
+    <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px"><span style="color:var(--muted)">邀请名额</span><span>${inv.use_count ?? 0} / ${inv.max_uses ?? 0} 已使用（剩 ${inv.uses_remaining ?? 0}）</span></div>
+      <div style="height:6px;background:var(--line);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--primary),var(--primary2))"></div></div>
+    </div>
+    ${inv.reward && inv.reward.title ? `<div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12.5px"><b style="color:var(--green)">${esc(inv.reward.title)}</b><div style="color:var(--muted);margin-top:2px">${esc(inv.reward.body || '')}</div></div>` : ''}
+    <div style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
+      ${inv.publishable_key ? `<div>Stripe 公钥：<span class="mono" style="color:var(--text);font-size:11px">${esc(inv.publishable_key)}</span> <button class="btn sm" onclick="copyText(inviteCtx.publishable_key)" style="padding:1px 8px;font-size:11px">复制</button></div>` : ''}
+      ${inv.invite_link ? `<div>邀请链接：<span style="color:var(--text)">${esc(inv.invite_link)}</span></div>` : ''}
+      ${inv.subtitle ? `<div style="color:var(--dim);line-height:1.6">${esc(inv.subtitle)}</div>` : ''}
+      ${inv.subscription ? `
+      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)">
+        <div>订阅：<b>${esc(inv.subscription.tierName || inv.subscription.subscriptionType || '-')}</b> · 本周额度已用 ${inv.subscription.percentUsed ?? 0}% · 加购/奖励额度 <b style="color:var(--violet)">${Number(inv.subscription.topupBalance || 0).toLocaleString()}</b> / ${Number(inv.subscription.topupTotal || 0).toLocaleString()}（服务端单位）</div>
+      </div>` : ''}
+      ${(() => {
+        // 已兑换判定（可靠信号优先）：① 订阅 topupTotal>0（邀请奖励发放）→已兑换；② 本地兑换记录 already_redeemed → 已兑换；③ 无数据 → 参考文案
+        if (inv.subscription && inv.subscription.topupTotal > 0) {
+          return `<div>已兑换他人邀请码：<b style="color:var(--orange)">是</b> <span style="color:var(--dim)">（依据：加购/邀请奖励额度总计 ${Number(inv.subscription.topupTotal).toLocaleString()}，此额度仅通过兑换他人邀请码或付费获得）</span></div>`;
+        }
+        if (inv.subscription && inv.subscription.topupTotal === 0) {
+          return `<div>已兑换他人邀请码：<b style="color:var(--green)">否</b> <span style="color:var(--dim)">（依据：无任何加购/邀请奖励额度，该账号从未兑换过他人邀请码）</span></div>`;
+        }
+        let localRedeemed = false;
+        const a = accounts.find(x => x.id === id);
+        if (a && a.redeem_info) { try { localRedeemed = JSON.parse(a.redeem_info).state === 'already_redeemed'; } catch {} }
+        if (localRedeemed) return '<div>已兑换他人邀请码：<b style="color:var(--orange)">是</b><span style="color:var(--dim)">（依据兑换尝试：服务端返回 already_redeemed）</span></div>';
+        return `已兑换他人邀请码：${inv.has_redeemed_invite_code ? '<b style="color:var(--orange)">是</b>' : '否'} <span style="color:var(--dim)">（订阅数据未同步，接口自报字段实测不准确，仅供参考；重新点「拉取」可刷新）</span>`;
+      })()}
+    </div>`;
+}
+async function copyText(t) {
+  if (!t) return;
+  try { await navigator.clipboard.writeText(t); toast('已复制', 'ok'); }
+  catch { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('已复制', 'ok'); }
+}
+
+/* ---------- 导入 / 导出 ---------- */
+function exportData(reveal) {
+  if (reveal === true) {
+    if (!confirm('将以「明文密码」导出备份文件。\n文件包含全部账号与明文密码，请务必妥善保管！\n\n继续导出？')) return;
+  } else if (accounts.length && !confirm('导出备份？（密码保持加密形态，导入本机数据目录后可直接使用）\n\n如需明文导出请再点一次并确认。')) return;
+  const q = reveal ? '?reveal=1' : '';
+  const t = API.token ? (reveal ? '&token=' + encodeURIComponent(API.token) : '?token=' + encodeURIComponent(API.token)) : '';
+  const url = '/api/export' + (reveal ? q : '') + t;
+  const a = document.createElement('a');
+  a.href = url; a.download = '';
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('备份导出中…', 'ok');
+}
+// 右键导出按钮可触发明文导出（提示已含确认）
+const expBtn = document.querySelector('.hactions .btn[title*="导出"]');
+if (expBtn) expBtn.addEventListener('contextmenu', e => { e.preventDefault(); exportData(true); });
+
+function importClick() { $('importFile').value = ''; $('importFile').click(); }
+async function importData(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const mode = confirm('导入模式选择：\n\n「确定」= 合并（跳过重复账号，推荐）\n「取消」= 整体替换（清空现有数据后导入）') ? 'merge' : 'replace';
+  if (mode === 'replace' && !confirm('整体替换将删除当前全部账号数据，确认继续？')) return;
+  try {
+    const text = await f.text();
+    const d = await API.req('/api/import?mode=' + mode, {method:'POST', body: text});
+    toast(`导入完成：新增 ${d.added ?? d.imported ?? 0}${d.skipped ? '，跳过 ' + d.skipped : ''}`, 'ok');
+    await load();
+  } catch (e) { toast('导入失败: ' + e.message, 'err'); }
+}
+
+/* ---------- 快捷键 ---------- */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeEdit(); closeSecret(); closeInvite(); closeRedeem(); closeProxy(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') { e.preventDefault(); openEdit(null); }
+});
+document.querySelectorAll('.overlay').forEach(ov => ov.addEventListener('mousedown', e => { if (e.target === ov) { ov.classList.add('hidden'); } }));
+
+init();
+</script>
+</body>
+</html>
