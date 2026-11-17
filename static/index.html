@@ -165,8 +165,9 @@
     <span class="srvinfo" id="srvInfo"></span>
     <button class="btn" id="btnInviteAll" onclick="fetchAllInvites()" title="并发刷新全部账号的邀请状态（自动刮码 + 实时次数 + 订阅/已兑换判定）">🎁 刷新邀请</button>
     <button class="btn" id="btnCheckAll" onclick="checkAll()" title="并发体检全部账号（auth/check + 落地页）并汇总统计">🩺 一键体检</button>
+    <button class="btn" id="btnLang" onclick="toggleLang()" title="切换界面语言 / Switch UI language">🌐 EN</button>
     <button class="btn" onclick="openProxy()" title="全局代理设置（访问 muse.ai 的默认代理）">⚙ 代理</button>
-    <button class="btn" onclick="exportData(false)" title="导出密文备份（换机器/恢复用）">导出备份</button>
+    <button class="btn" id="btnExport" onclick="exportData(false)" title="导出密文备份（换机器/恢复用）">导出备份</button>
     <button class="btn" onclick="importClick()" title="从备份 JSON 导入">导入</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
     <button class="btn primary" onclick="openEdit(null)">＋ 新增账号</button>
@@ -216,7 +217,7 @@
     <button class="btn primary" id="btnBatchRedeem" onclick="openBatchRedeem()" title="用同一个邀请码并发兑换选中账号">🎁 批量兑换</button>
     <button class="btn" onclick="detectSelected()" title="对选中账号执行体检 + 刷新邀请码/词元">🩺 检测选定</button>
     <button class="btn" onclick="updateSelectedInvites()" title="刷新选中账号的邀请码与词元使用状态">🎁 更新邀请/词元</button>
-    <button class="btn" onclick="copySelectedInvites()" title="把选中账号的邀请码复制到剪贴板（每行：邮箱 + 邀请码 + 剩余次数）">📋 复制邀请码</button>
+    <button class="btn" onclick="copySelectedInvites()" title="把选中账号的邀请码复制到剪贴板（仅邀请码，每行一个）">📋 复制邀请码</button>
     <button class="btn" onclick="downloadSelectedInvites()" title="把选中账号的邀请码下载为 CSV 文件（邮箱、邀请码、剩余次数、同步时间）">⬇️ 下载邀请码</button>
     <button class="btn" onclick="clearSelection()">取消选择</button>
     <span style="font-size:11.5px;color:var(--muted)">批量兑换将并发执行（每批 3 个，各账号独立指纹），无 Cookie 的账号自动跳过</span>
@@ -370,13 +371,385 @@
 </div>
 
 <script>
+/* ---------- i18n：中英双语界面（右上角 🌐 切换，偏好存 localStorage） ---------- */
+let LANG = localStorage.getItem('muse_lang') === 'en' ? 'en' : 'zh';
+const I18N = {
+  /* 标题 / 通用 */
+  'muse.ai 账号管理': 'muse.ai Account Manager',
+  'muse.ai 账号管理系统': 'muse.ai Account Manager',
+  'Go · 本地数据 · 密码 AES-256-GCM 加密存储': 'Go · Local data · AES-256-GCM encrypted storage',
+  '此服务已启用访问令牌保护': 'This service is protected by an access token',
+  '进入系统': 'Enter',
+  '输入访问令牌': 'Enter access token',
+  '响应解析失败': 'Failed to parse response',
+  /* 顶部按钮 */
+  '🎁 刷新邀请': '🎁 Refresh invites',
+  '🩺 一键体检': '🩺 Check all',
+  '⚙ 代理': '⚙ Proxy',
+  '导出备份': 'Export backup',
+  '导入': 'Import',
+  '＋ 新增账号': '＋ Add account',
+  '并发刷新全部账号的邀请状态（自动刮码 + 实时次数 + 订阅/已兑换判定）': 'Refresh invite status of all accounts in parallel (auto scratch + live counts + subscription/redeemed check)',
+  '并发体检全部账号（auth/check + 落地页）并汇总统计': 'Health-check all accounts in parallel (auth/check + landing page) with a summary',
+  '全局代理设置（访问 muse.ai 的默认代理）': 'Global proxy settings (default proxy for muse.ai access)',
+  '导出密文备份（换机器/恢复用）': 'Export an encrypted backup (for migration/restore)',
+  '从备份 JSON 导入': 'Import from a backup JSON',
+  /* 统计卡 */
+  '账号总数': 'Total accounts',
+  '正常可用': 'Active',
+  '失效 / 封禁': 'Invalid / banned',
+  /* 筛选与排序 */
+  '搜索邮箱 / 备注 / 标签 / 邀请码…': 'Search email / notes / tags / invite code…',
+  '全部状态': 'All statuses',
+  '正常': 'Active',
+  '临近到期': 'Expiring',
+  '封禁': 'Banned',
+  '待验证': 'Unverified',
+  '冷却中': 'Cooldown',
+  '区域受限': 'Region-limited',
+  '全部计划': 'All plans',
+  '全部体检结果': 'All check results',
+  '✅ 正常': '✅ Normal',
+  '🚫 已禁用/解除关联': '🚫 Disabled/Detached',
+  '⛔ 区域受限': '⛔ Region-limited',
+  '⌛ 登录失效': '⌛ Login expired',
+  '🤖 真人验证拦截': '🤖 Human verification',
+  '⚠️ 无法判定': '⚠️ Undetermined',
+  '未体检': 'Not checked',
+  '全部标签': 'All tags',
+  '创建时间 ↓': 'Created ↓',
+  '邮箱 A→Z': 'Email A→Z',
+  '按状态': 'By status',
+  '最近修改 ↓': 'Recently modified ↓',
+  /* 批量浮条 */
+  '已选 0 项': '0 selected',
+  '已选 {n} 项': '{n} selected',
+  '🎁 批量兑换': '🎁 Batch redeem',
+  '🩺 检测选定': '🩺 Check selected',
+  '🎁 更新邀请/词元': '🎁 Refresh invites/tokens',
+  '📋 复制邀请码': '📋 Copy codes',
+  '⬇️ 下载邀请码': '⬇️ Download codes',
+  '取消选择': 'Clear selection',
+  '用同一个邀请码并发兑换选中账号': 'Redeem the same invite code for the selected accounts in parallel',
+  '对选中账号执行体检 + 刷新邀请码/词元': 'Run a health check + refresh invite codes/tokens on the selected accounts',
+  '刷新选中账号的邀请码与词元使用状态': 'Refresh invite codes and token usage of the selected accounts',
+  '把选中账号的邀请码复制到剪贴板（仅邀请码，每行一个）': 'Copy the invite codes of the selected accounts to the clipboard (codes only, one per line)',
+  '把选中账号的邀请码下载为 CSV 文件（邮箱、邀请码、剩余次数、同步时间）': 'Download the invite codes of the selected accounts as a CSV (email, code, remaining, synced time)',
+  '批量兑换将并发执行（每批 3 个，各账号独立指纹），无 Cookie 的账号自动跳过': 'Batch redeem runs in parallel (3 per batch, unique fingerprint per account); accounts without a cookie are skipped automatically',
+  /* 表格 */
+  '账号': 'Account',
+  '计划': 'Plan',
+  '状态': 'Status',
+  '额度 / 词元': 'Quota / Tokens',
+  '备注 / 标签': 'Notes / Tags',
+  '操作': 'Actions',
+  '全选/取消全选（当前筛选结果）': 'Select all/none (current filter results)',
+  '选中以批量兑换': 'Select for batch operations',
+  '准入体检（auth/check）': 'Health check (auth/check)',
+  '兑换邀请码（自动 VM 唤醒）': 'Redeem invite code (auto VM wake)',
+  '拉取/查看邀请信息': 'Fetch/view invite info',
+  '查看 Cookie': 'View cookie',
+  'Cookie已设置': 'Cookie set',
+  'Cookie未设置': 'Cookie not set',
+  '暂无账号，点击右上角「新增账号」开始': 'No accounts yet — click "Add account" at the top right to start',
+  '没有匹配的账号，试试调整搜索或筛选条件': 'No matching accounts — try adjusting the search or filters',
+  '数据仅保存在本机 data/ 目录 · accounts.json + key.bin': 'Data stays local in the ./data directory · accounts.json + key.bin',
+  /* 编辑弹窗 */
+  '新增账号': 'Add account',
+  '编辑账号': 'Edit account',
+  '登录邮箱 / 用户名': 'Login email / username',
+  '验证码接收邮箱即此邮箱（邮箱验证码登录）': 'The verification code goes to this email (email-code login)',
+  '请求代理（可选）': 'Request proxy (optional)',
+  'http://user:pass@ip:port 或 socks5://…': 'http://user:pass@ip:port or socks5://…',
+  '本账号专属代理；留空则用全局「⚙ 代理」设置': 'Per-account proxy; leave empty to use the global ⚙ Proxy setting',
+  '订阅计划': 'Subscription plan',
+  '自定义…': 'Custom…',
+  '输入计划名称': 'Enter plan name',
+  '额度 / Token 余额': 'Quota / token balance',
+  '如 310亿 Token / $5.00': 'e.g. 31B tokens / $5.00',
+  '邀请码 / 推荐码': 'Invite / referral code',
+  'F9YY5G，同步邀请信息时自动更新': 'F9YY5G — auto-updated when invite info syncs',
+  '标签（逗号分隔）': 'Tags (comma-separated)',
+  '主力号,过验证': 'primary, verified',
+  '登录 Cookie（muse.ai）': 'Login cookie (muse.ai)',
+  '📩 验证码登录': '📩 Email-code login',
+  '点击上方「📩 验证码登录」自动获取，或粘贴浏览器 Cookie（需含 hatch_sess=…）': 'Click "📩 Email-code login" above to fetch it automatically, or paste your browser cookie (must contain hatch_sess=…)',
+  '向邮箱发送验证码，服务端直接登录后自动填入 Cookie': 'Send a verification code to the email; the server logs in and fills the cookie automatically',
+  '6 位验证码': '6-digit code',
+  '登录并填入': 'Log in & fill',
+  '验证码已发送至邮箱，输入邮件中的 6 位数字后点击登录': 'Code sent to your email — enter the 6 digits from the message, then click log in',
+  '清空已保存的 Cookie': 'Clear saved cookie',
+  '用于服务端代为拉取邀请信息（加密存储）；已保存则留空表示不修改': 'Used by the server to fetch invite info (encrypted at rest); leave empty to keep the saved cookie',
+  '已保存则留空表示不修改': 'Leave empty to keep the saved cookie',
+  '备注': 'Notes',
+  '注册时间、验证方式、静态 IP 等补充信息': 'Supplementary info: registration date, verification method, static IP…',
+  '取消': 'Cancel',
+  '保存': 'Save',
+  '邮箱': 'Email',
+  '邀请码': 'Invite code',
+  /* 状态标签 */
+  '✅体检正常': '✅ Healthy',
+  '🚫已禁用/解除关联': '🚫 Disabled/Detached',
+  '⛔区域受限': '⛔ Region-limited',
+  '⌛登录失效': '⌛ Login expired',
+  '🤖真人验证拦截': '🤖 Human verification',
+  '⚠体检无法判定': '⚠ Undetermined',
+  '❓体检未知': '❓ Unknown',
+  '体检正常': 'Healthy',
+  '已禁用/解除关联': 'Disabled/Detached',
+  '登录失效': 'Login expired',
+  '体检无法判定': 'Undetermined',
+  '真人验证拦截': 'Human verification',
+  '体检未知': 'Unknown',
+  '已兑换': 'Redeemed',
+  '已兑过': 'Already redeemed',
+  '码用尽': 'Code used up',
+  '码无效': 'Invalid code',
+  '唤醒失败': 'Wake failed',
+  '可邀请': 'Eligible',
+  '额度用尽': 'Exhausted',
+  '不可邀请': 'Ineligible',
+  /* 密钥 / 邀请 / 兑换弹窗 */
+  '敏感信息': 'Sensitive info',
+  '登录 Cookie': 'Login cookie',
+  '显示': 'Show',
+  '隐藏': 'Hide',
+  '复制': 'Copy',
+  '关闭': 'Close',
+  '邀请信息': 'Invite info',
+  '正在请求 muse.ai …': 'Requesting muse.ai…',
+  '正在请求 muse.ai …（约 1-20 秒）': 'Requesting muse.ai… (~1–20s)',
+  '兑换邀请码': 'Redeem invite code',
+  '如 DEMOXY': 'e.g. DEMOXY',
+  '自动执行 VM 唤醒 → 确认 → 兑换 → 取回自己的码；每账号限兑换一次': 'Runs the whole chain automatically: VM wake → confirm → redeem → fetch your own code; one redemption per account',
+  '🎁 批量兑换邀请码': '🎁 Batch redeem invite code',
+  '邀请码（对选中账号使用同一个码）': 'Invite code (the same code for all selected accounts)',
+  '每个码默认可被兑换 30 次；并发执行（每批 3 个 · 各账号独立指纹 · 自动 VM 唤醒），无 Cookie 的账号自动跳过': 'Each code can be redeemed 30 times by default; runs in parallel (3 per batch · unique fingerprint per account · auto VM wake); accounts without a cookie are skipped',
+  '开始兑换': 'Start redeem',
+  '🎁 刷新邀请状态': '🎁 Refresh invite status',
+  '兑换': 'Redeem',
+  '🩺 体检': '🩺 Check',
+  '🎫 兑换': '🎫 Redeem',
+  '🎁 邀请': '🎁 Invite',
+  '🔑 查看': '🔑 View',
+  '编辑': 'Edit',
+  '删除': 'Delete',
+  /* 代理弹窗 */
+  '⚙ 全局代理': '⚙ Global proxy',
+  '代理地址': 'Proxy address',
+  'socks5://127.0.0.1:10808 或 http://ip:port，留空=直连': 'socks5://127.0.0.1:10808 or http://ip:port — empty = direct',
+  '访问 muse.ai（体检/邀请）的默认代理。优先级：账号代理 > 此处 > MUSE_PROXY 环境变量。保存后立即生效，无需重启': 'Default proxy for muse.ai access (checks/invites). Priority: account proxy > this setting > MUSE_PROXY env. Effective immediately, no restart needed',
+  '测试连接': 'Test connection',
+  /* 动态文案：状态行 */
+  '已连接 · {n} 个账号': 'Connected · {n} accounts',
+  '最后刷新 ': 'Last refreshed ',
+  '邀请码 ': 'Code ',
+  '使用 ': 'Used ',
+  '本周额度已用 {p}%': 'Weekly quota used {p}%',
+  '邀请码 {c} · 剩 {r}/{m} 次': 'Code {c} · {r}/{m} left',
+  '✅ 已兑换': '✅ Redeemed',
+  ' · 自己的码 ': ' · own code ',
+  '🎫 兑换: ': '🎫 Redeem: ',
+  /* 动态文案：提示 */
+  '无法连接服务: ': 'Cannot connect to server: ',
+  '加载失败: ': 'Load failed: ',
+  '检测失败: ': 'Check failed: ',
+  '发送失败: ': 'Send failed: ',
+  '登录失败: ': 'Login failed: ',
+  '登录失败：': 'Login failed: ',
+  '导入失败: ': 'Import failed: ',
+  '体检失败: ': 'Check failed: ',
+  '一键体检失败: ': 'Check-all failed: ',
+  '兑换失败: ': 'Redeem failed: ',
+  '批量兑换失败: ': 'Batch redeem failed: ',
+  '邀请刷新失败: ': 'Invite refresh failed: ',
+  '读取设置失败: ': 'Failed to read settings: ',
+  '邀请刷新进行中，请稍候…': 'Invite refresh in progress, please wait…',
+  '检测进行中，请稍候…': 'Check in progress, please wait…',
+  '一键体检进行中，请稍候…': 'Check-all in progress, please wait…',
+  '请先勾选账号': 'Select accounts first',
+  '请先勾选账号（表格第一列）': 'Select accounts first (first column of the table)',
+  '登录邮箱不能为空': 'Login email is required',
+  '请先在上方填写邮箱地址': 'Enter the email address above first',
+  '验证码已发送，请查收邮箱': 'Code sent — check your inbox',
+  '请先发送验证码': 'Send the verification code first',
+  '请输入 6 位验证码': 'Enter the 6-digit code',
+  '已保存修改': 'Changes saved',
+  '账号已添加': 'Account added',
+  '已删除': 'Deleted',
+  '已复制': 'Copied',
+  '已复制到剪贴板': 'Copied to clipboard',
+  '该字段为空': 'This field is empty',
+  '全局代理已保存，立即生效': 'Global proxy saved — effective immediately',
+  '备份导出中…': 'Exporting backup…',
+  '选中的账号里没有可用的邀请码（未刮开或未同步）': 'No usable invite codes among the selected accounts (not scratched yet, or not synced)',
+  '复制失败：浏览器拒绝了剪贴板访问，请改用「⬇️ 下载邀请码」': 'Copy failed: the browser denied clipboard access — use "⬇️ Download codes" instead',
+  '⏳ 刷新中…': '⏳ Refreshing…',
+  '⏳ 发送中…': '⏳ Sending…',
+  '⏳ 登录中…': '⏳ Logging in…',
+  '⏳ 体检中…': '⏳ Checking…',
+  '⏳ 正在测试连通性…': '⏳ Testing connectivity…',
+  /* 动态文案：批量/检测汇总 */
+  '选中的 {n} 个账号': 'the {n} selected accounts',
+  '全部账号': 'all accounts',
+  '⏳ 正在并发刷新{scope}的邀请状态（每批 3 个，自动刮码 + 订阅查询，预计 {s} 秒左右）…': '⏳ Refreshing invite status for {scope} in parallel (3 per batch, auto scratch + subscription query, about {s}s)…',
+  '✅成功 {n}': '✅ OK {n}',
+  '🆕新刮码 {n}': '🆕 Newly scratched {n}',
+  '📭额度用尽 {n}': '📭 Exhausted {n}',
+  '❌失败 {n}': '❌ Failed {n}',
+  '⏭跳过 {n}': '⏭ Skipped {n}',
+  '邀请刷新完成（共 {n}）：{p}': 'Invite refresh done ({n} total): {p}',
+  '无账号': 'no accounts',
+  '无结果': 'no results',
+  '🆕首次刮开': '🆕 First scratch',
+  '{u}/{m}（剩 {r}）': '{u}/{m} ({r} left)',
+  '是': 'Yes',
+  '否': 'No',
+  '未同步': 'Not synced',
+  '跳过': 'Skipped',
+  '失败': 'failed',
+  '无': 'none',
+  '未知': 'unknown',
+  '已兑换他人码 ': 'Redeemed ',
+  '已用/总量': 'Used/Total',
+  '兑换状态': 'Redeemed?',
+  '结果': 'Result',
+  '说明': 'Detail',
+  '💡 兑换状态依据订阅加购/邀请奖励额度（可靠信号）；首次刮码的账号会当场生成新码。': '💡 The redeemed status is derived from the subscription top-up/reward quota (a reliable signal); accounts scratching for the first time get a new code on the spot.',
+  '检测中：体检 + 邀请码/词元（{n} 个，约 15~30 秒）…': 'Checking: health + codes/tokens ({n} accounts, ~15–30s)…',
+  '✅正常 {n}': '✅ Healthy {n}',
+  '⛔区域受限 {n}': '⛔ Region-limited {n}',
+  '🚫已禁用 {n}': '🚫 Disabled {n}',
+  '⌛登录失效 {n}': '⌛ Login expired {n}',
+  '🤖真人验证 {n}': '🤖 Human verification {n}',
+  '⚠️无法判定 {n}': '⚠️ Undetermined {n}',
+  '❓未知 {n}': '❓ Unknown {n}',
+  '邀请码 {n}': 'Codes {n}',
+  '❌邀请失败 {n}': '❌ Invite failed {n}',
+  '检测完成（{n} 个）：{p1}｜{p2}': 'Check done ({n}): {p1} | {p2}',
+  '目标 {n} 个账号（其中 {k} 个无 Cookie 将自动跳过）：': '{n} target accounts ({k} without a cookie will be skipped):',
+  '目标 {n} 个账号：': '{n} target accounts:',
+  '（无 Cookie，将跳过）': '(no cookie, will be skipped)',
+  '请输入邀请码': 'Enter an invite code',
+  '⏳ 正在并发兑换 {n} 个账号（每批 3 个，预计 {a}~{b} 秒）…': '⏳ Redeeming for {n} accounts in parallel (3 per batch, ~{a}–{b}s)…',
+  '🎫已兑过 {n}': '🎫 Already redeemed {n}',
+  '🧾码用尽 {n}': '🧾 Code used up {n}',
+  '❌码无效 {n}': '❌ Invalid code {n}',
+  '💥失败 {n}': '💥 Failed {n}',
+  '批量兑换完成（共 {n}）：{p}': 'Batch redeem done ({n} total): {p}',
+  '已复制 {n} 个邀请码到剪贴板': 'Copied {n} invite codes to the clipboard',
+  '已下载 {n} 个邀请码（CSV）': 'Downloaded {n} invite codes (CSV)',
+  '（{k} 个无码跳过）': ' ({k} without codes skipped)',
+  '剩余次数': 'Remaining',
+  '同步时间': 'Synced at',
+  /* 动态文案：体检/兑换 */
+  '体检中：正在调用 auth/check …': 'Checking: calling auth/check…',
+  '准入状态 [{s}] {d}': 'Admission [{s}] {d}',
+  '账号状态已更新 → {s}': 'Account status updated → {s}',
+  '账号状态保持不变': 'Account status unchanged',
+  '一键体检：正在并发检测全部账号（每批 3 个，约 10~40 秒）…': 'Check-all: checking every account in parallel (3 per batch, ~10–40s)…',
+  '一键体检完成（共 {n}，已检 {k}）：{p}': 'Check-all done ({n} total, {k} checked): {p}',
+  '{e}：{m}': '{e}: {m}',
+  '…另有 {n} 个异常账号，详见列表状态列': '…{n} more problem accounts — see the status column',
+  '{e} · 兑换邀请码': '{e} · Redeem invite code',
+  '上次结果：[{s}] {d}': 'Last result: [{s}] {d}',
+  '（{tm}）': ' ({tm})',
+  '⏳ 正在执行兑换链（VM 唤醒 → 确认 → 兑换，约 3-15 秒）…': '⏳ Running the redeem chain (VM wake → confirm → redeem, ~3–15s)…',
+  '账号状态 → ': 'Account status → ',
+  '兑换 [{s}] {d}': 'Redeem [{s}] {d}',
+  /* 动态文案：代理 */
+  '当前生效：': 'Currently active: ',
+  '（来自环境变量 MUSE_PROXY）': ' (from the MUSE_PROXY env variable)',
+  '当前未设置代理（直连）': 'No proxy set (direct connection)',
+  '✅ 可连通 muse.ai': '✅ muse.ai reachable',
+  ' · 延迟 ': ' · latency ',
+  ' · 经 ': ' · via ',
+  ' · 直连': ' · direct',
+  /* 动态文案：删除确认 */
+  '确认删除账号「{e}」？\n删除后不可恢复。': 'Delete account "{e}"?\nThis cannot be undone.',
+  '{e} · 登录 Cookie': '{e} · Login cookie',
+  '{e} · 邀请信息': '{e} · Invite info',
+  /* 动态文案：邀请详情 */
+  '常见原因：① 登录 Cookie 已过期或触发真人验证（需在浏览器完成验证）　② 账号邀请额度已用尽　③ 代理不可用（右上角「⚙ 代理」可测试）': 'Common causes: ① expired login cookie or a human-verification challenge (finish it in a browser) ② invite quota exhausted ③ proxy unreachable (test it via ⚙ Proxy, top right)',
+  '重试': 'Retry',
+  '刚刚同步': 'Just synced',
+  '同步于 {ts}': 'Synced at {ts}',
+  '邀请好友，获得额外使用额度': 'Invite friends, earn extra usage quota',
+  '复制邀请码': 'Copy code',
+  '复制分享文案': 'Copy share text',
+  '邀请名额': 'Invite quota',
+  '{u} / {m} 已使用（剩 {r}）': '{u} / {m} used ({r} left)',
+  'Stripe 公钥：': 'Stripe publishable key: ',
+  '邀请链接：': 'Invite link: ',
+  '订阅：': 'Subscription: ',
+  ' · 本周额度已用 ': ' · weekly quota used ',
+  ' · 加购/奖励额度 ': ' · top-up/reward quota ',
+  '（服务端单位）': ' (server units)',
+  '已兑换他人邀请码：': "Redeemed someone else's code: ",
+  '（依据：加购/邀请奖励额度总计 {n}，此额度仅通过兑换他人邀请码或付费获得）': " (basis: top-up/reward quota totals {n} — obtainable only by redeeming someone else's code or by paying)",
+  '（依据：无任何加购/邀请奖励额度，该账号从未兑换过他人邀请码）': ' (basis: no top-up/reward quota at all — this account has never redeemed another code)',
+  '（依据兑换尝试：服务端返回 already_redeemed）': ' (basis: redeem attempt — the server returned already_redeemed)',
+  '（订阅数据未同步，接口自报字段实测不准确，仅供参考；重新点「拉取」可刷新）': ' (subscription data not synced; the self-reported field is unreliable in practice — for reference only; fetch again to refresh)',
+  /* 动态文案：登录/新增/自动检测 */
+  '验证码已发送至 {e}（服务端确认该邮箱已有 muse 账号）': 'Code sent to {e} (the server confirmed a muse account exists for this email)',
+  '验证码已发送至 {e}（注意：服务端未发现该邮箱的 muse 账号，登录可能无法完成）': 'Code sent to {e} (note: no muse account found for this email — login may not complete)',
+  '📩 已发送，重新发送': '📩 Sent — resend',
+  '📩 重新登录': '📩 Log in again',
+  '登录成功！已自动填入 Cookie（hatch_sess {n} 字符）': 'Login successful! Cookie filled in automatically (hatch_sess {n} chars)',
+  '已添加，正在自动检测账号状态与邀请信息…': 'Added — auto-detecting account status and invite info…',
+  '状态 {s}': 'Status {s}',
+  '邀请码 {c}（{u}/{m} 次）': 'Code {c} ({u}/{m} uses)',
+  '词元 {v}': 'Tokens {v}',
+  '体检: ': 'Check: ',
+  '邀请: ': 'Invite: ',
+  '自动检测完成：': 'Auto-detect done: ',
+  '（未完成 {e}）': ' (unfinished: {e})',
+  /* 动态文案：导入导出 */
+  '将以「明文密码」导出备份文件。\n文件包含全部账号与明文密码，请务必妥善保管！\n\n继续导出？': 'This exports a backup with PLAINTEXT passwords.\nThe file contains all accounts and plaintext passwords — store it safely!\n\nContinue?',
+  '导出备份？（密码保持加密形态，导入本机数据目录后可直接使用）\n\n如需明文导出请再点一次并确认。': 'Export a backup? (passwords stay encrypted; the file can be imported directly on this machine)\n\nFor a plaintext export, click again and confirm.',
+  '导入模式选择：\n\n「确定」= 合并（跳过重复账号，推荐）\n「取消」= 整体替换（清空现有数据后导入）': 'Choose import mode:\n\nOK = merge (skip duplicates, recommended)\nCancel = replace (clear existing data, then import)',
+  '整体替换将删除当前全部账号数据，确认继续？': 'Replace mode deletes ALL current account data. Continue?',
+  '导入完成：新增 {n}': 'Import done: added {n}',
+  '，跳过 {k}': ', skipped {k}'
+};
+function t(key, params) {
+  let s = (LANG === 'en' && I18N[key] !== undefined) ? I18N[key] : key;
+  if (params) { for (const k in params) { s = s.split('{' + k + '}').join(String(params[k])); } }
+  return s;
+}
+function walkTextNodes(root, fn) {
+  for (const n of Array.from(root.childNodes)) {
+    if (n.nodeType === 3) fn(n);
+    else if (n.nodeType === 1 && n.tagName !== 'SCRIPT' && n.tagName !== 'STYLE' && n.tagName !== 'TEXTAREA') walkTextNodes(n, fn);
+  }
+}
+function applyStaticI18N() {
+  if (LANG !== 'en') return;
+  walkTextNodes(document.body, n => {
+    const raw = n.nodeValue, key = raw.trim();
+    if (key && I18N[key] !== undefined) n.nodeValue = raw.split(key).join(I18N[key]);
+  });
+  document.querySelectorAll('[placeholder]').forEach(el => { const k = el.placeholder.trim(); if (I18N[k] !== undefined) el.placeholder = I18N[k]; });
+  document.querySelectorAll('[title]').forEach(el => { const k = el.title.trim(); if (I18N[k] !== undefined) el.title = I18N[k]; });
+  document.title = 'muse.ai Account Manager';
+  document.documentElement.lang = 'en';
+}
+function toggleLang() {
+  localStorage.setItem('muse_lang', LANG === 'zh' ? 'en' : 'zh');
+  location.reload();
+}
+(function setLangBtn() {
+  const b = document.getElementById('btnLang');
+  if (b) b.textContent = LANG === 'zh' ? '🌐 EN' : '🌐 中文';
+})();
+
 const API = {
   token: localStorage.getItem('muse_token') || '',
   async req(path, opts = {}) {
     const h = Object.assign({'Content-Type':'application/json'}, opts.headers || {});
     if (this.token) h['X-Auth-Token'] = this.token;
     const r = await fetch(path, Object.assign({}, opts, {headers: h}));
-    const j = await r.json().catch(() => ({ok:false,error:'响应解析失败'}));
+    const j = await r.json().catch(() => ({ok:false,error:t('响应解析失败')}));
     if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP ' + r.status));
     return j.data;
   }
@@ -387,7 +760,7 @@ let editingId = null;      // null=新增
 let secretCtx = {id:null, cookie:''};
 let inviteCtx = null;      // 当前邀请信息
 let selectedIds = new Set(); // 表格勾选的账号（批量操作用）；筛选/刷新后保留
-const CHECK_STATE_LBL = {admitted:'✅体检正常', disabled:'🚫已禁用/解除关联', region_limited:'⛔区域受限', auth_expired:'⌛登录失效', challenge:'🤖真人验证拦截', forbidden:'⚠体检无法判定', unknown:'❓体检未知'};
+const CHECK_STATE_LBL = {admitted:t('✅体检正常'), disabled:t('🚫已禁用/解除关联'), region_limited:t('⛔区域受限'), auth_expired:t('⌛登录失效'), challenge:t('🤖真人验证拦截'), forbidden:t('⚠体检无法判定'), unknown:t('❓体检未知')};
 function checkStateOf(a) {  // 预解析体检结果状态；无快照返回 'none'
   if (!a.check_info) return a.checked_at ? 'unknown' : 'none';
   try { const c = JSON.parse(a.check_info); return c.state || 'unknown'; } catch { return 'unknown'; }
@@ -395,12 +768,12 @@ function checkStateOf(a) {  // 预解析体检结果状态；无快照返回 'no
 
 const $ = id => document.getElementById(id);
 const STATUS_META = {
-  active:    {label:'正常',   cls:'b-active'},
-  expiring:  {label:'临近到期', cls:'b-expiring'},
-  banned:    {label:'封禁',   cls:'b-banned'},
-  unverified:{label:'待验证', cls:'b-unverified'},
-  cooldown:  {label:'冷却中', cls:'b-cooldown'},
-  region_limited: {label:'区域受限', cls:'b-expiring'}
+  active:    {label:t('正常'),   cls:'b-active'},
+  expiring:  {label:t('临近到期'), cls:'b-expiring'},
+  banned:    {label:t('封禁'),   cls:'b-banned'},
+  unverified:{label:t('待验证'), cls:'b-unverified'},
+  cooldown:  {label:t('冷却中'), cls:'b-cooldown'},
+  region_limited: {label:t('区域受限'), cls:'b-expiring'}
 };
 
 function toast(msg, type='', ms=2600) {
@@ -415,6 +788,11 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const TOKEN_PER_UNIT = 25;
 function fmtTokens(n) {
   n = Number(n) || 0;
+  if (LANG === 'en') {
+    if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.?0+$/, '') + 'M tokens';
+    if (n >= 1e4) return (n / 1e3).toFixed(1).replace(/\.?0+$/, '') + 'k tokens';
+    return n.toLocaleString() + ' tokens';
+  }
   if (n >= 1e8) return (n / 1e8).toFixed(2).replace(/\.?0+$/, '') + ' 亿词元';
   if (n >= 1e4) return (n / 1e4).toFixed(1).replace(/\.?0+$/, '') + ' 万词元';
   return n.toLocaleString() + ' 词元';
@@ -428,7 +806,7 @@ async function init() {
     await load();
   } catch (e) {
     $('gate').classList.remove('hidden');
-    $('gateErr').textContent = '无法连接服务: ' + e.message;
+    $('gateErr').textContent = t('无法连接服务: ') + e.message;
   }
 }
 async function doLogin() {
@@ -447,22 +825,22 @@ async function load() {
   try {
     accounts = await API.req('/api/accounts');
     render(); renderPlanOptions();
-    $('srvInfo').textContent = '已连接 · ' + accounts.length + ' 个账号';
-    $('footRight').textContent = '最后刷新 ' + new Date().toLocaleTimeString('zh-CN');
+    $('srvInfo').textContent = t('已连接 · {n} 个账号', {n: accounts.length});
+    $('footRight').textContent = t('最后刷新 ') + new Date().toLocaleTimeString('zh-CN');
   } catch (e) {
     if (String(e.message).includes('未授权')) { $('gate').classList.remove('hidden'); return; }
-    toast('加载失败: ' + e.message, 'err');
+    toast(t('加载失败: ') + e.message, 'err');
   }
 }
 
 function renderPlanOptions() {
   const plans = [...new Set(accounts.map(a => a.plan).filter(Boolean))];
   const sel = $('fPlan'), cur = sel.value;
-  sel.innerHTML = '<option value="all">全部计划</option>' + plans.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  sel.innerHTML = '<option value="all">' + t('全部计划') + '</option>' + plans.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
   if (plans.includes(cur)) sel.value = cur;
   const tags = [...new Set(accounts.flatMap(a => a.tags || []).filter(Boolean))].sort();
   const tsel = $('fTag'), tcur = tsel.value;
-  tsel.innerHTML = '<option value="all">全部标签</option>' + tags.map(t => `<option value="${esc(t)}">🏷 ${esc(t)}</option>`).join('');
+  tsel.innerHTML = '<option value="all">' + t('全部标签') + '</option>' + tags.map(tg => `<option value="${esc(tg)}">🏷 ${esc(tg)}</option>`).join('');
   if (tags.includes(tcur)) tsel.value = tcur;
 }
 
@@ -497,8 +875,8 @@ function render() {
   tb.innerHTML = list.map((a, i) => {
     const sm = STATUS_META[a.status] || {label:a.status||'-', cls:'b-unverified'};
     const invParts = [];
-    if (a.invite_code) invParts.push('邀请码 ' + a.invite_code);
-    if (a.last_used_at) invParts.push('使用 ' + a.last_used_at);
+    if (a.invite_code) invParts.push(t('邀请码 ') + a.invite_code);
+    if (a.last_used_at) invParts.push(t('使用 ') + a.last_used_at);
     const invHtml = invParts.length ? `<div class="cell-sub" style="margin-top:1px">${esc(invParts.join(' · '))}</div>` : '';
     // 额度列：优先展示订阅数据里的当前词元（topup 余额 × 25）；无订阅时退回手填 balance
     let balHtml = `<span style="color:var(--dim)">${esc(a.balance || '—')}</span>`, usageLine = '';
@@ -509,19 +887,19 @@ function render() {
         if (sub) {
           const tokens = (sub.topupBalance || 0) * TOKEN_PER_UNIT;
           if (tokens > 0) balHtml = `<b style="color:var(--violet)">${fmtTokens(tokens)}</b>`;
-          usageLine = `<div class="cell-sub">本周额度已用 ${sub.percentUsed ?? 0}%</div>`;
+          usageLine = `<div class="cell-sub">${t('本周额度已用 {p}%', {p: sub.percentUsed ?? 0})}</div>`;
         }
       } catch {}
     }
     const tags = (a.tags||[]).map(t => `<span class="tag">${esc(t)}</span>`).join('');
-    const ckDot = a.has_cookie ? '<span class="secret-cell haspw" title="Cookie已设置">◆</span>' : '<span class="nopw" title="Cookie未设置">◇</span>';
+    const ckDot = a.has_cookie ? `<span class="secret-cell haspw" title="${t('Cookie已设置')}">◆</span>` : `<span class="nopw" title="${t('Cookie未设置')}">◇</span>`;
     let invSum = '';
     if (a.invite_info) {
       try {
         const inv = JSON.parse(a.invite_info);
         if (inv.code) {
           const rem = inv.uses_remaining ?? Math.max(0, (Number(inv.max_uses) || 0) - (Number(inv.use_count) || 0));
-          invSum = `邀请码 ${esc(inv.code)} · 剩 ${rem}/${Number(inv.max_uses) || 0} 次`;
+          invSum = t('邀请码 {c} · 剩 {r}/{m} 次', {c: esc(inv.code), r: rem, m: Number(inv.max_uses) || 0});
         }
       } catch {}
     }
@@ -531,7 +909,7 @@ function render() {
       try {
         const ck = JSON.parse(a.check_info);
         const ckIcon = {admitted:'✅', region_limited:'⛔', auth_expired:'⌛', forbidden:'⚠️', disabled:'🚫', challenge:'🤖', unknown:'❓'}[ck.state] || '❓';
-        const ckLbl = {admitted:'体检正常', region_limited:'区域受限', auth_expired:'登录失效', forbidden:'体检无法判定', disabled:'已禁用/解除关联', challenge:'真人验证拦截', unknown:'体检未知'}[ck.state] || ck.state;
+        const ckLbl = {admitted:t('体检正常'), region_limited:t('区域受限'), auth_expired:t('登录失效'), forbidden:t('体检无法判定'), disabled:t('已禁用/解除关联'), challenge:t('真人验证拦截'), unknown:t('体检未知')}[ck.state] || ck.state;
         ckLine = `<div class="cell-sub" style="margin-top:1px">${ckIcon} ${esc(ckLbl)}${a.checked_at ? ' · ' + esc(a.checked_at.slice(5, 16)) : ''}</div>`;
       } catch {}
     }
@@ -540,35 +918,35 @@ function render() {
       try {
         const rd = JSON.parse(a.redeem_info);
         if (rd.state === 'redeemed') {
-          rdLine = `<div class="cell-sub" style="margin-top:1px;color:var(--green)">✅ 已兑换${rd.own_code ? ' · 自己的码 ' + esc(rd.own_code) : ''}${a.redeemed_at ? ' · ' + esc(a.redeemed_at.slice(5, 16)) : ''}</div>`;
+          rdLine = `<div class="cell-sub" style="margin-top:1px;color:var(--green)">${t('✅ 已兑换')}${rd.own_code ? t(' · 自己的码 ') + esc(rd.own_code) : ''}${a.redeemed_at ? ' · ' + esc(a.redeemed_at.slice(5, 16)) : ''}</div>`;
         } else {
-          const rdLbl = {already_redeemed:'已兑过', used_up:'码用尽', invalid:'码无效', auth_expired:'登录失效', region_limited:'区域受限', error:'唤醒失败'}[rd.state] || rd.state;
-          rdLine = `<div class="cell-sub" style="margin-top:1px;color:var(--dim)">🎫 兑换: ${esc(rdLbl)}${a.redeemed_at ? ' · ' + esc(a.redeemed_at.slice(5, 16)) : ''}</div>`;
+          const rdLbl = {already_redeemed:t('已兑过'), used_up:t('码用尽'), invalid:t('码无效'), auth_expired:t('登录失效'), region_limited:t('区域受限'), error:t('唤醒失败')}[rd.state] || rd.state;
+          rdLine = `<div class="cell-sub" style="margin-top:1px;color:var(--dim)">${t('🎫 兑换: ')}${esc(rdLbl)}${a.redeemed_at ? ' · ' + esc(a.redeemed_at.slice(5, 16)) : ''}</div>`;
         }
       } catch {}
     }
     return `<tr>
-      <td><input type="checkbox" ${selectedIds.has(a.id) ? 'checked' : ''} onchange="toggleSelect('${a.id}', this.checked)" title="选中以批量兑换" style="accent-color:var(--violet);cursor:pointer"></td>
+      <td><input type="checkbox" ${selectedIds.has(a.id) ? 'checked' : ''} onchange="toggleSelect('${a.id}', this.checked)" title="${t('选中以批量兑换')}" style="accent-color:var(--violet);cursor:pointer"></td>
       <td style="color:var(--dim)">${i+1}</td>
       <td><div class="email">${esc(a.email)}</div><div class="cell-sub">${invHtml}${invLine}${ckLine}${rdLine}</div></td>
       <td><span class="plan-badge">${esc(a.plan || '-')}</span></td>
       <td><span class="badge ${sm.cls}"><span class="dot"></span>${sm.label}</span></td>
       <td>${balHtml}${usageLine}</td>
       <td class="tb-notes"><div class="cell-sub" style="max-width:220px;white-space:normal">${esc(a.notes || '')}</div>${tags}</td>
-      <td><span title="Cookie${a.has_cookie?'已设置':'未设置'}">${ckDot}</span></td>
+      <td><span title="${a.has_cookie ? t('Cookie已设置') : t('Cookie未设置')}">${ckDot}</span></td>
       <td><div class="row-actions">
-        <button class="btn sm" onclick="checkStatus('${a.id}')" title="准入体检（auth/check）">🩺 体检</button>
-        <button class="btn sm" onclick="openRedeem('${a.id}')" title="兑换邀请码（自动 VM 唤醒）">🎫 兑换</button>
-        <button class="btn sm" onclick="viewInvite('${a.id}')" title="拉取/查看邀请信息">🎁 邀请</button>
-        <button class="btn sm" onclick="viewSecret('${a.id}')" title="查看 Cookie">🔑 查看</button>
-        <button class="btn sm" onclick="openEdit('${a.id}')">编辑</button>
-        <button class="btn sm danger" onclick="delAccount('${a.id}')">删除</button>
+        <button class="btn sm" onclick="checkStatus('${a.id}')" title="${t('准入体检（auth/check）')}">${t('🩺 体检')}</button>
+        <button class="btn sm" onclick="openRedeem('${a.id}')" title="${t('兑换邀请码（自动 VM 唤醒）')}">${t('🎫 兑换')}</button>
+        <button class="btn sm" onclick="viewInvite('${a.id}')" title="${t('拉取/查看邀请信息')}">${t('🎁 邀请')}</button>
+        <button class="btn sm" onclick="viewSecret('${a.id}')" title="${t('查看 Cookie')}">${t('🔑 查看')}</button>
+        <button class="btn sm" onclick="openEdit('${a.id}')">${t('编辑')}</button>
+        <button class="btn sm danger" onclick="delAccount('${a.id}')">${t('删除')}</button>
       </div></td>
     </tr>`;
   }).join('');
   $('emptyBox').classList.toggle('hidden', list.length > 0);
-  if (list.length === 0 && accounts.length > 0) $('emptyMsg').textContent = '没有匹配的账号，试试调整搜索或筛选条件';
-  else if (list.length === 0) $('emptyMsg').textContent = '暂无账号，点击右上角「新增账号」开始';
+  if (list.length === 0 && accounts.length > 0) $('emptyMsg').textContent = t('没有匹配的账号，试试调整搜索或筛选条件');
+  else if (list.length === 0) $('emptyMsg').textContent = t('暂无账号，点击右上角「新增账号」开始');
 
   // 统计
   $('stTotal').textContent = accounts.length;
@@ -578,7 +956,7 @@ function render() {
   // 多选状态同步：剔除已删除账号；刷新全选框与批量操作浮条
   for (const id of [...selectedIds]) if (!accounts.find(a => a.id === id)) selectedIds.delete(id);
   $('cbAll').checked = list.length > 0 && list.every(a => selectedIds.has(a.id));
-  $('selCount').textContent = `已选 ${selectedIds.size} 项`;
+  $('selCount').textContent = t('已选 {n} 项', {n: selectedIds.size});
   $('btnBatchRedeem').disabled = selectedIds.size === 0;
   $('batchBar').classList.toggle('hidden', selectedIds.size === 0);
 }
@@ -587,42 +965,42 @@ function render() {
 let inviteAllBusy = false;
 function closeInviteAll() { $('mInviteAll').classList.add('hidden'); }
 async function fetchAllInvites(ids) {
-  if (inviteAllBusy) { toast('邀请刷新进行中，请稍候…', 'warn'); return; }
+  if (inviteAllBusy) { toast(t('邀请刷新进行中，请稍候…'), 'warn'); return; }
   inviteAllBusy = true;
   const selMode = ids && ids.length > 0;
-  const scope = selMode ? `选中的 ${ids.length} 个账号` : '全部账号';
+  const scope = selMode ? t('选中的 {n} 个账号', {n: ids.length}) : t('全部账号');
   const btn = $('btnInviteAll');
   const old = btn.textContent;
-  btn.disabled = true; btn.textContent = '⏳ 刷新中…';
-  $('iaResult').innerHTML = `⏳ 正在并发刷新${scope}的邀请状态（每批 3 个，自动刮码 + 订阅查询，预计 ${Math.max(5, Math.ceil((selMode ? ids.length : accounts.length) / 3) * 6)} 秒左右）…`;
+  btn.disabled = true; btn.textContent = t('⏳ 刷新中…');
+  $('iaResult').innerHTML = t('⏳ 正在并发刷新{scope}的邀请状态（每批 3 个，自动刮码 + 订阅查询，预计 {s} 秒左右）…', {scope, s: Math.max(5, Math.ceil((selMode ? ids.length : accounts.length) / 3) * 6)});
   $('mInviteAll').classList.remove('hidden');
   try {
     const body = selMode ? JSON.stringify({ids}) : '{}';
     const d = await API.req('/api/accounts/fetch-invite-all', {method:'POST', body});
     const s = d.summary;
     const parts = [];
-    if (s.refreshed) parts.push(`✅成功 ${s.refreshed}`);
-    if (s.acquired) parts.push(`🆕新刮码 ${s.acquired}`);
-    if (s.exhausted) parts.push(`📭额度用尽 ${s.exhausted}`);
-    if (s.failed) parts.push(`❌失败 ${s.failed}`);
-    if (s.skipped) parts.push(`⏭跳过 ${s.skipped}`);
-    const stat = `邀请刷新完成（共 ${s.total}）：${parts.join(' · ') || '无账号'}`;
+    if (s.refreshed) parts.push(t('✅成功 {n}', {n: s.refreshed}));
+    if (s.acquired) parts.push(t('🆕新刮码 {n}', {n: s.acquired}));
+    if (s.exhausted) parts.push(t('📭额度用尽 {n}', {n: s.exhausted}));
+    if (s.failed) parts.push(t('❌失败 {n}', {n: s.failed}));
+    if (s.skipped) parts.push(t('⏭跳过 {n}', {n: s.skipped}));
+    const stat = t('邀请刷新完成（共 {n}）：{p}', {n: s.total, p: parts.join(' · ') || t('无账号')});
     const icon = r => r.ok ? (r.has_redeemed ? '🔥' : '✅') : (r.skipped ? '⏭' : (String(r.error || '').includes('额度已用尽') ? '📭' : '❌'));
     const rows = (d.results || []).map(r => {
-      const codeCell = r.ok ? `<b class="mono">${esc(r.code || '—')}</b>${r.new_code ? ' <span style="color:var(--green);font-size:11px">🆕首次刮开</span>' : ''}` : '—';
-      const useCell = r.ok ? `${r.use_count ?? 0}/${r.max_uses ?? 0}（剩 ${r.uses_remaining ?? 0}）` : '—';
-      const redeCell = r.ok ? (r.sub_synced ? (r.has_redeemed ? '<b style="color:var(--orange)">是</b>' : '<span style="color:var(--green)">否</span>') : '<span style="color:var(--dim)">未同步</span>') : '—';
-      const stCell = r.ok ? `<span style="color:var(--green)">${esc(r.invite_state || 'OK')}</span>` : (r.skipped ? '<span style="color:var(--dim)">跳过</span>' : `<span style="color:var(--red)" title="${esc(r.error)}">${esc((r.error || '失败').slice(0, 60))}</span>`);
-      return `<tr><td style="padding:4px 6px">${icon(r)} ${esc(r.email || r.id)}</td><td style="padding:4px 6px">${codeCell}</td><td style="padding:4px 6px">${useCell}</td><td style="padding:4px 6px">已兑换他人码 ${redeCell}</td><td style="padding:4px 6px">${stCell}</td></tr>`;
+      const codeCell = r.ok ? `<b class="mono">${esc(r.code || '—')}</b>${r.new_code ? ` <span style="color:var(--green);font-size:11px">${t('🆕首次刮开')}</span>` : ''}` : '—';
+      const useCell = r.ok ? t('{u}/{m}（剩 {r}）', {u: r.use_count ?? 0, m: r.max_uses ?? 0, r: r.uses_remaining ?? 0}) : '—';
+      const redeCell = r.ok ? (r.sub_synced ? (r.has_redeemed ? `<b style="color:var(--orange)">${t('是')}</b>` : `<span style="color:var(--green)">${t('否')}</span>`) : `<span style="color:var(--dim)">${t('未同步')}</span>`) : '—';
+      const stCell = r.ok ? `<span style="color:var(--green)">${esc(r.invite_state || 'OK')}</span>` : (r.skipped ? `<span style="color:var(--dim)">${t('跳过')}</span>` : `<span style="color:var(--red)" title="${esc(r.error)}">${esc((r.error || t('失败')).slice(0, 60))}</span>`);
+      return `<tr><td style="padding:4px 6px">${icon(r)} ${esc(r.email || r.id)}</td><td style="padding:4px 6px">${codeCell}</td><td style="padding:4px 6px">${useCell}</td><td style="padding:4px 6px">${t('已兑换他人码 ')}${redeCell}</td><td style="padding:4px 6px">${stCell}</td></tr>`;
     }).join('');
     $('iaResult').innerHTML = `<div style="color:${s.failed + s.exhausted > 0 ? 'var(--orange)' : 'var(--green)'};font-weight:600;margin-bottom:10px">${esc(stat)}</div>` +
-      '<table style="width:100%;border-collapse:collapse;font-size:11.5px"><tr style="color:var(--muted);text-align:left"><th style="padding:4px 6px">账号</th><th style="padding:4px 6px">邀请码</th><th style="padding:4px 6px">已用/总量</th><th style="padding:4px 6px">兑换状态</th><th style="padding:4px 6px">状态</th></tr>' + rows + '</table>' +
-      '<div style="color:var(--dim);font-size:11px;margin-top:8px">💡 兑换状态依据订阅加购/邀请奖励额度（可靠信号）；首次刮码的账号会当场生成新码。</div>';
+      '<table style="width:100%;border-collapse:collapse;font-size:11.5px"><tr style="color:var(--muted);text-align:left"><th style="padding:4px 6px">' + t('账号') + '</th><th style="padding:4px 6px">' + t('邀请码') + '</th><th style="padding:4px 6px">' + t('已用/总量') + '</th><th style="padding:4px 6px">' + t('兑换状态') + '</th><th style="padding:4px 6px">' + t('状态') + '</th></tr>' + rows + '</table>' +
+      `<div style="color:var(--dim);font-size:11px;margin-top:8px">${t('💡 兑换状态依据订阅加购/邀请奖励额度（可靠信号）；首次刮码的账号会当场生成新码。')}</div>`;
     toast(stat, s.failed + s.exhausted > 0 ? 'warn' : 'ok', 10000);
     await load();
   } catch (e) {
     $('iaResult').innerHTML = '<span style="color:var(--red)">❌ ' + esc(e.message) + '</span>';
-    toast('邀请刷新失败: ' + e.message, 'err', 8000);
+    toast(t('邀请刷新失败: ') + e.message, 'err', 8000);
   } finally {
     inviteAllBusy = false; btn.disabled = false; btn.textContent = old;
   }
@@ -631,36 +1009,36 @@ async function fetchAllInvites(ids) {
 /* ---------- 选定账号检测 / 更新邀请与词元 ---------- */
 let detectSelBusy = false;
 function updateSelectedInvites() {
-  if (selectedIds.size === 0) { toast('请先勾选账号', 'warn'); return; }
+  if (selectedIds.size === 0) { toast(t('请先勾选账号'), 'warn'); return; }
   return fetchAllInvites([...selectedIds]);
 }
 async function detectSelected() {
-  if (detectSelBusy) { toast('检测进行中，请稍候…', 'warn'); return; }
+  if (detectSelBusy) { toast(t('检测进行中，请稍候…'), 'warn'); return; }
   const ids = [...selectedIds];
-  if (ids.length === 0) { toast('请先勾选账号', 'warn'); return; }
+  if (ids.length === 0) { toast(t('请先勾选账号'), 'warn'); return; }
   detectSelBusy = true;
-  toast(`检测中：体检 + 邀请码/词元（${ids.length} 个，约 15~30 秒）…`, '', 8000);
+  toast(t('检测中：体检 + 邀请码/词元（{n} 个，约 15~30 秒）…', {n: ids.length}), '', 8000);
   try {
     const ck = await API.req('/api/accounts/check-all', {method:'POST', body: JSON.stringify({ids})});
     const iv = await API.req('/api/accounts/fetch-invite-all', {method:'POST', body: JSON.stringify({ids})});
     const cs = ck.summary, is = iv.summary;
     const p1 = [];
-    if (cs.admitted)       p1.push(`✅正常 ${cs.admitted}`);
-    if (cs.disabled)       p1.push(`🚫禁用 ${cs.disabled}`);
-    if (cs.region_limited) p1.push(`⛔区域受限 ${cs.region_limited}`);
-    if (cs.auth_expired)   p1.push(`⌛登录失效 ${cs.auth_expired}`);
-    if (cs.challenge)      p1.push(`🤖真人验证 ${cs.challenge}`);
-    if (cs.forbidden)      p1.push(`⚠无法判定 ${cs.forbidden}`);
-    if (cs.skipped)        p1.push(`⏭跳过 ${cs.skipped}`);
+    if (cs.admitted)       p1.push(t('✅正常 {n}', {n: cs.admitted}));
+    if (cs.disabled)       p1.push(t('🚫已禁用 {n}', {n: cs.disabled}));
+    if (cs.region_limited) p1.push(t('⛔区域受限 {n}', {n: cs.region_limited}));
+    if (cs.auth_expired)   p1.push(t('⌛登录失效 {n}', {n: cs.auth_expired}));
+    if (cs.challenge)      p1.push(t('🤖真人验证 {n}', {n: cs.challenge}));
+    if (cs.forbidden)      p1.push(t('⚠️无法判定 {n}', {n: cs.forbidden}));
+    if (cs.skipped)        p1.push(t('⏭跳过 {n}', {n: cs.skipped}));
     const p2 = [];
-    if (is.refreshed) p2.push(`邀请码 ${is.refreshed}`);
-    if (is.acquired)  p2.push(`🆕新刮码 ${is.acquired}`);
-    if (is.exhausted) p2.push(`📭额度用尽 ${is.exhausted}`);
-    if (is.failed)    p2.push(`❌邀请失败 ${is.failed}`);
-    toast(`检测完成（${ids.length} 个）：${p1.join(' · ')}｜${p2.join(' · ')}`, 'ok', 12000);
+    if (is.refreshed) p2.push(t('邀请码 {n}', {n: is.refreshed}));
+    if (is.acquired)  p2.push(t('🆕新刮码 {n}', {n: is.acquired}));
+    if (is.exhausted) p2.push(t('📭额度用尽 {n}', {n: is.exhausted}));
+    if (is.failed)    p2.push(t('❌邀请失败 {n}', {n: is.failed}));
+    toast(t('检测完成（{n} 个）：{p1}｜{p2}', {n: ids.length, p1: p1.join(' · '), p2: p2.join(' · ')}), 'ok', 12000);
     await load();
   } catch (e) {
-    toast('检测失败: ' + e.message, 'err', 8000);
+    toast(t('检测失败: ') + e.message, 'err', 8000);
   } finally {
     detectSelBusy = false;
   }
@@ -681,51 +1059,53 @@ function clearSelection() { selectedIds.clear(); render(); }
 
 function closeBatchRedeem() { $('mBatchRedeem').classList.add('hidden'); }
 function openBatchRedeem() {
-  if (selectedIds.size === 0) { toast('请先勾选账号（表格第一列）', 'warn'); return; }
+  if (selectedIds.size === 0) { toast(t('请先勾选账号（表格第一列）'), 'warn'); return; }
   const targets = accounts.filter(a => selectedIds.has(a.id));
   const withCk = targets.filter(a => a.has_cookie).length;
   $('brCode').value = '';
   $('brResult').innerHTML = '';
   $('btnBatchDo').disabled = false;
-  $('brTargets').innerHTML = `目标 ${targets.length} 个账号${withCk < targets.length ? `（其中 ${targets.length - withCk} 个无 Cookie 将自动跳过）` : ''}：<br>` +
-    targets.map(a => esc(a.email) + (a.has_cookie ? '' : ' <span style="color:var(--orange)">（无 Cookie，将跳过）</span>')).join('，');
+  $('brTargets').innerHTML = (withCk < targets.length
+      ? t('目标 {n} 个账号（其中 {k} 个无 Cookie 将自动跳过）：', {n: targets.length, k: targets.length - withCk})
+      : t('目标 {n} 个账号：', {n: targets.length})) + '<br>' +
+    targets.map(a => esc(a.email) + (a.has_cookie ? '' : ` <span style="color:var(--orange)">${t('（无 Cookie，将跳过）')}</span>`)).join(LANG === 'en' ? ', ' : '，');
   $('mBatchRedeem').classList.remove('hidden');
   setTimeout(() => $('brCode').focus(), 50);
 }
 async function doBatchRedeem() {
   const code = $('brCode').value.trim().toUpperCase();
-  if (!code) { $('brResult').innerHTML = '<span style="color:var(--orange)">请输入邀请码</span>'; return; }
-  if (selectedIds.size === 0) { toast('请先勾选账号', 'warn'); return; }
+  if (!code) { $('brResult').innerHTML = `<span style="color:var(--orange)">${t('请输入邀请码')}</span>`; return; }
+  if (selectedIds.size === 0) { toast(t('请先勾选账号'), 'warn'); return; }
   const ids = [...selectedIds];
   $('btnBatchDo').disabled = true;
-  $('brResult').innerHTML = `⏳ 正在并发兑换 ${ids.length} 个账号（每批 3 个，预计 ${Math.max(3, Math.ceil(ids.length / 3) * 4)}~${Math.ceil(ids.length / 3) * 12} 秒）…`;
+  $('brResult').innerHTML = t('⏳ 正在并发兑换 {n} 个账号（每批 3 个，预计 {a}~{b} 秒）…', {n: ids.length, a: Math.max(3, Math.ceil(ids.length / 3) * 4), b: Math.ceil(ids.length / 3) * 12});
   try {
     const d = await API.req('/api/accounts/redeem-batch', {method:'POST', body: JSON.stringify({code, ids})});
     const s = d.summary;
     const parts = [];
-    if (s.succeeded)       parts.push(`✅成功 ${s.succeeded}`);
-    if (s.already_redeemed) parts.push(`🎫已兑过 ${s.already_redeemed}`);
-    if (s.used_up)        parts.push(`🧾码用尽 ${s.used_up}`);
-    if (s.invalid)        parts.push(`❌码无效 ${s.invalid}`);
-    if (s.auth_expired)   parts.push(`⌛登录失效 ${s.auth_expired}`);
-    if (s.region_limited) parts.push(`⛔区域受限 ${s.region_limited}`);
-    if (s.failed)         parts.push(`💥失败 ${s.failed}`);
-    if (s.skipped)        parts.push(`⏭跳过 ${s.skipped}`);
-    const stat = `批量兑换完成（共 ${s.total}）：${parts.join(' · ') || '无结果'}`;
+    if (s.succeeded)       parts.push(t('✅成功 {n}', {n: s.succeeded}));
+    if (s.already_redeemed) parts.push(t('🎫已兑过 {n}', {n: s.already_redeemed}));
+    if (s.used_up)        parts.push(t('🧾码用尽 {n}', {n: s.used_up}));
+    if (s.invalid)        parts.push(t('❌码无效 {n}', {n: s.invalid}));
+    if (s.auth_expired)   parts.push(t('⌛登录失效 {n}', {n: s.auth_expired}));
+    if (s.region_limited) parts.push(t('⛔区域受限 {n}', {n: s.region_limited}));
+    if (s.failed)         parts.push(t('💥失败 {n}', {n: s.failed}));
+    if (s.skipped)        parts.push(t('⏭跳过 {n}', {n: s.skipped}));
+    const stat = t('批量兑换完成（共 {n}）：{p}', {n: s.total, p: parts.join(' · ') || t('无结果')});
     const clr = s.succeeded > 0 ? 'var(--green)' : (s.failed + s.invalid > 0 ? 'var(--red)' : 'var(--orange)');
     $('brResult').innerHTML = `<div style="color:${clr};font-weight:600;margin-bottom:8px">${esc(stat)}</div>` +
       '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
-      '<tr style="color:var(--muted);text-align:left"><th style="padding:3px 6px">账号</th><th style="padding:3px 6px">结果</th><th style="padding:3px 6px">说明</th></tr>' +
+      '<tr style="color:var(--muted);text-align:left"><th style="padding:3px 6px">' + t('账号') + '</th><th style="padding:3px 6px">' + t('结果') + '</th><th style="padding:3px 6px">' + t('说明') + '</th></tr>' +
       (d.results || []).map(r => {
         const icon = r.state === 'redeemed' ? '✅' : (r.skipped || r.error ? '⚠' : '❌');
-        const sdTxt = r.ok ? (esc(r.detail || r.state) + (r.own_code ? ' · 自己的码 <b>' + esc(r.own_code) + '</b>' : '')) : esc(r.error || '失败');
+        const sdTxt = r.ok ? (esc(r.detail || r.state) + (r.own_code ? t(' · 自己的码 ') + '<b>' + esc(r.own_code) + '</b>' : '')) : esc(r.error || t('失败'));
         return `<tr><td style="padding:3px 6px">${esc(r.email || r.id)}</td><td style="padding:3px 6px">${icon} ${esc(r.state || (r.skipped ? 'skipped' : 'error'))}</td><td style="padding:3px 6px">${sdTxt}</td></tr>`;
       }).join('') + '</table>';
     toast(stat, s.succeeded > 0 ? 'ok' : 'warn', 12000);
     await load();
   } catch (e) {
     $('brResult').innerHTML = '<span style="color:var(--red)">❌ ' + esc(e.message) + '</span>';
-    toast('批量兑换失败: ' + e.message, 'err', 8000);
+    toast(t('批量兑换失败: ') + e.message, 'err', 8000);
   } finally {
     $('btnBatchDo').disabled = false;
   }
@@ -770,19 +1150,19 @@ async function copyTextToClipboard(text) {
   return ok;
 }
 async function copySelectedInvites() {
-  if (selectedIds.size === 0) { toast('请先勾选账号（表格第一列）', 'warn'); return; }
+  if (selectedIds.size === 0) { toast(t('请先勾选账号（表格第一列）'), 'warn'); return; }
   const { rows, noCode } = collectSelectedInvites();
-  if (rows.length === 0) { toast('选中的账号里没有可用的邀请码（未刮开或未同步）', 'warn', 8000); return; }
-  const text = rows.map(r => [r.email, r.code, r.left].join('\t')).join('\n');
+  if (rows.length === 0) { toast(t('选中的账号里没有可用的邀请码（未刮开或未同步）'), 'warn', 8000); return; }
+  const text = rows.map(r => r.code).join('\n');
   const ok = await copyTextToClipboard(text);
-  if (ok) toast(`已复制 ${rows.length} 个邀请码到剪贴板${noCode ? `（${noCode} 个无码跳过）` : ''}`, 'ok', 8000);
-  else toast('复制失败：浏览器拒绝了剪贴板访问，请改用「⬇️ 下载邀请码」', 'err', 10000);
+  if (ok) toast(t('已复制 {n} 个邀请码到剪贴板', {n: rows.length}) + (noCode ? t('（{k} 个无码跳过）', {k: noCode}) : ''), 'ok', 8000);
+  else toast(t('复制失败：浏览器拒绝了剪贴板访问，请改用「⬇️ 下载邀请码」'), 'err', 10000);
 }
 function downloadSelectedInvites() {
-  if (selectedIds.size === 0) { toast('请先勾选账号（表格第一列）', 'warn'); return; }
+  if (selectedIds.size === 0) { toast(t('请先勾选账号（表格第一列）'), 'warn'); return; }
   const { rows, noCode } = collectSelectedInvites();
-  if (rows.length === 0) { toast('选中的账号里没有可用的邀请码（未刮开或未同步）', 'warn', 8000); return; }
-  const csv = '\uFEFF邮箱,邀请码,剩余次数,同步时间\r\n' +
+  if (rows.length === 0) { toast(t('选中的账号里没有可用的邀请码（未刮开或未同步）'), 'warn', 8000); return; }
+  const csv = '\uFEFF' + t('邮箱') + ',' + t('邀请码') + ',' + t('剩余次数') + ',' + t('同步时间') + '\r\n' +
     rows.map(r => [csvCell(r.email), csvCell(r.code), csvCell(r.left), csvCell(r.synced)].join(',')).join('\r\n') + '\r\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -794,21 +1174,21 @@ function downloadSelectedInvites() {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 3000);
-  toast(`已下载 ${rows.length} 个邀请码（CSV）${noCode ? `（${noCode} 个无码跳过）` : ''}`, 'ok', 8000);
+  toast(t('已下载 {n} 个邀请码（CSV）', {n: rows.length}) + (noCode ? t('（{k} 个无码跳过）', {k: noCode}) : ''), 'ok', 8000);
 }
 
 /* ---------- 新增 / 编辑 ---------- */
 function openEdit(id) {
   editingId = id;
   const a = id ? accounts.find(x => x.id === id) : null;
-  $('editTitle').textContent = a ? '编辑账号' : '新增账号';
+  $('editTitle').textContent = a ? t('编辑账号') : t('新增账号');
   $('eEmail').value = a ? a.email : '';
   $('eCookie').value = '';
   $('eCookieClear').checked = false;
   resetOTPPanel();
   const hasCk = a && a.has_cookie;
   $('cookieClearRow').style.display = hasCk ? 'flex' : 'none';
-  $('cookieHint').textContent = hasCk ? '已保存则留空表示不修改' : '用于服务端代为拉取邀请信息（加密存储）';
+  $('cookieHint').textContent = hasCk ? t('已保存则留空表示不修改') : t('用于服务端代为拉取邀请信息（加密存储）；已保存则留空表示不修改');
   const plan = a ? (a.plan || 'free') : 'free';
   const known = ['free','plus','pro','enterprise'];
   if (known.includes(plan)) { $('ePlan').value = plan; $('ePlanCustom').classList.add('hidden'); }
@@ -832,52 +1212,52 @@ function resetOTPPanel() {
   $('otpPanel').style.display = 'none';
   $('otpCode').value = '';
   $('btnSendOTP').disabled = false;
-  $('btnSendOTP').textContent = '📩 验证码登录';
+  $('btnSendOTP').textContent = t('📩 验证码登录');
   $('btnVerifyOTP').disabled = false;
 }
 async function sendLoginOTP() {
   if (otpSendBusy) return;
   const email = $('eEmail').value.trim();
-  if (!email || !email.includes('@')) { toast('请先在上方填写邮箱地址', 'err'); return; }
+  if (!email || !email.includes('@')) { toast(t('请先在上方填写邮箱地址'), 'err'); return; }
   otpSendBusy = true;
   $('btnSendOTP').disabled = true;
-  $('btnSendOTP').textContent = '⏳ 发送中…';
+  $('btnSendOTP').textContent = t('⏳ 发送中…');
   try {
     const d = await API.req('/api/login/send-otp', {method:'POST', body: JSON.stringify({email, proxy: $('eProxy').value.trim()})});
     otpSessionId = d.session_id;
     $('otpPanel').style.display = 'flex';
     $('otpHint').textContent = d.has_muse_account
-      ? '验证码已发送至 ' + email + '（服务端确认该邮箱已有 muse 账号）'
-      : '验证码已发送至 ' + email + '（注意：服务端未发现该邮箱的 muse 账号，登录可能无法完成）';
-    $('btnSendOTP').textContent = '📩 已发送，重新发送';
-    toast('验证码已发送，请查收邮箱', 'ok');
+      ? t('验证码已发送至 {e}（服务端确认该邮箱已有 muse 账号）', {e: email})
+      : t('验证码已发送至 {e}（注意：服务端未发现该邮箱的 muse 账号，登录可能无法完成）', {e: email});
+    $('btnSendOTP').textContent = t('📩 已发送，重新发送');
+    toast(t('验证码已发送，请查收邮箱'), 'ok');
     setTimeout(() => $('otpCode').focus(), 80);
   } catch (e) {
-    toast('发送失败: ' + e.message, 'err', 6000);
-    $('btnSendOTP').textContent = '📩 验证码登录';
+    toast(t('发送失败: ') + e.message, 'err', 6000);
+    $('btnSendOTP').textContent = t('📩 验证码登录');
   } finally {
     otpSendBusy = false;
     $('btnSendOTP').disabled = false;
   }
 }
 async function verifyLoginOTP() {
-  if (!otpSessionId) { toast('请先发送验证码', 'err'); return; }
+  if (!otpSessionId) { toast(t('请先发送验证码'), 'err'); return; }
   const code = $('otpCode').value.trim();
-  if (code.length !== 6) { toast('请输入 6 位验证码', 'err'); return; }
+  if (code.length !== 6) { toast(t('请输入 6 位验证码'), 'err'); return; }
   $('btnVerifyOTP').disabled = true;
-  $('btnVerifyOTP').textContent = '⏳ 登录中…';
+  $('btnVerifyOTP').textContent = t('⏳ 登录中…');
   try {
     const d = await API.req('/api/login/verify', {method:'POST', body: JSON.stringify({session_id: otpSessionId, code})});
     $('eCookie').value = d.cookie;
     $('otpPanel').style.display = 'none';
-    $('btnSendOTP').textContent = '📩 重新登录';
-    toast(`登录成功！已自动填入 Cookie（hatch_sess ${d.hatch_sess_len} 字符）`, 'ok', 6000);
+    $('btnSendOTP').textContent = t('📩 重新登录');
+    toast(t('登录成功！已自动填入 Cookie（hatch_sess {n} 字符）', {n: d.hatch_sess_len}), 'ok', 6000);
   } catch (e) {
-    toast('登录失败: ' + e.message, 'err', 6000);
-    $('otpHint').textContent = '登录失败：' + e.message;
+    toast(t('登录失败: ') + e.message, 'err', 6000);
+    $('otpHint').textContent = t('登录失败：') + e.message;
   } finally {
     $('btnVerifyOTP').disabled = false;
-    $('btnVerifyOTP').textContent = '登录并填入';
+    $('btnVerifyOTP').textContent = t('登录并填入');
   }
 }
 $('otpCode').addEventListener('keydown', e => { if (e.key === 'Enter' && !$('btnVerifyOTP').disabled) verifyLoginOTP(); });
@@ -887,7 +1267,7 @@ $('ePlan').addEventListener('change', () => {
 
 async function saveAccount() {
   const email = $('eEmail').value.trim();
-  if (!email) { toast('登录邮箱不能为空', 'err'); return; }
+  if (!email) { toast(t('登录邮箱不能为空'), 'err'); return; }
   const plan = $('ePlan').value === '__custom' ? $('ePlanCustom').value.trim() : $('ePlan').value;
   const body = {
     email,
@@ -905,14 +1285,14 @@ async function saveAccount() {
     body.cookie = $('eCookieClear').checked ? '__CLEAR__' : ck;
     Object.assign(body, bodyExtra);
     try { await API.req('/api/accounts/' + editingId, {method:'PUT', body: JSON.stringify(body)});
-      toast('已保存修改', 'ok'); closeEdit(); await load();
+      toast(t('已保存修改'), 'ok'); closeEdit(); await load();
     } catch (e) { toast(e.message, 'err'); }
   } else {
     body.cookie = ck;
     Object.assign(body, bodyExtra);
     try {
       const created = await API.req('/api/accounts', {method:'POST', body: JSON.stringify(body)});
-      toast('账号已添加', 'ok'); closeEdit(); await load();
+      toast(t('账号已添加'), 'ok'); closeEdit(); await load();
       // 新增成功后自动检测：账号状态（体检）+ 邀请码/兑换状态/次数 + 词元额度
       if (created && created.id) autoDetectAccount(created.id);
     } catch (e) { toast(e.message, 'err'); }
@@ -921,22 +1301,22 @@ async function saveAccount() {
 
 // 新增账号自动检测（并行体检 + 拉取邀请），完成后 toast 汇总
 async function autoDetectAccount(id) {
-  toast('已添加，正在自动检测账号状态与邀请信息…', 'ok', 6000);
+  toast(t('已添加，正在自动检测账号状态与邀请信息…'), 'ok', 6000);
   const res = {};
   await Promise.allSettled([
     API.req(`/api/accounts/${id}/check-status`, {method:'POST'}).then(d => { res.check = d.admission; }).catch(e => { res.checkErr = e.message; }),
     API.req(`/api/accounts/${id}/fetch-invite`, {method:'POST'}).then(d => { res.inv = d.invite; }).catch(e => { res.invErr = e.message; })
   ]);
   const parts = [];
-  if (res.check) parts.push(`状态 ${res.check.state}`);
+  if (res.check) parts.push(t('状态 {s}', {s: res.check.state}));
   if (res.inv) {
-    parts.push(`邀请码 ${res.inv.code || '无'}（${res.inv.use_count ?? 0}/${res.inv.max_uses ?? 0} 次）`);
-    if (res.inv.subscription) parts.push(`词元 ${fmtTokens((res.inv.subscription.topupBalance || 0) * TOKEN_PER_UNIT)}`);
+    parts.push(t('邀请码 {c}（{u}/{m} 次）', {c: res.inv.code || t('无'), u: res.inv.use_count ?? 0, m: res.inv.max_uses ?? 0}));
+    if (res.inv.subscription) parts.push(t('词元 {v}', {v: fmtTokens((res.inv.subscription.topupBalance || 0) * TOKEN_PER_UNIT)}));
   }
   const errs = [];
-  if (res.checkErr) errs.push('体检: ' + res.checkErr);
-  if (res.invErr) errs.push('邀请: ' + res.invErr);
-  toast('自动检测完成：' + (parts.join(' · ') || '无结果') + (errs.length ? `（未完成 ${errs.join('；').slice(0, 90)}）` : ''), parts.length ? 'ok' : 'warn', 10000);
+  if (res.checkErr) errs.push(t('体检: ') + res.checkErr);
+  if (res.invErr) errs.push(t('邀请: ') + res.invErr);
+  toast(t('自动检测完成：') + (parts.join(' · ') || t('无结果')) + (errs.length ? t('（未完成 {e}）', {e: errs.join('；').slice(0, 90)}) : ''), parts.length ? 'ok' : 'warn', 10000);
   await load();
 }
 
@@ -944,50 +1324,50 @@ async function autoDetectAccount(id) {
 async function checkStatus(id) {
   const a = accounts.find(x => x.id === id);
   if (!a) return;
-  toast('体检中：正在调用 auth/check …');
+  toast(t('体检中：正在调用 auth/check …'));
   try {
     const d = await API.req(`/api/accounts/${id}/check-status`, {method:'POST'});
     const ad = d.admission;
-    const msg = `准入状态 [${ad.state}] ${ad.detail}` + (d.status_updated ? `\n账号状态已更新 → ${d.status_updated}` : '\n账号状态保持不变');
+    const msg = t('准入状态 [{s}] {d}', {s: ad.state, d: ad.detail}) + (d.status_updated ? '\n' + t('账号状态已更新 → {s}', {s: d.status_updated}) : '\n' + t('账号状态保持不变'));
     toast(msg, ad.state === 'admitted' ? 'ok' : (ad.state === 'region_limited' ? 'warn' : 'err'), 7000);
     await load();
-  } catch (e) { toast('体检失败: ' + e.message, 'err', 7000); }
+  } catch (e) { toast(t('体检失败: ') + e.message, 'err', 7000); }
 }
 
 /* ---------- 一键体检 ---------- */
 let checkAllBusy = false;
 async function checkAll() {
-  if (checkAllBusy) { toast('一键体检进行中，请稍候…', 'warn'); return; }
+  if (checkAllBusy) { toast(t('一键体检进行中，请稍候…'), 'warn'); return; }
   checkAllBusy = true;
   const btn = $('btnCheckAll');
   const old = btn.textContent;
-  btn.disabled = true; btn.textContent = '⏳ 体检中…';
-  toast('一键体检：正在并发检测全部账号（每批 3 个，约 10~40 秒）…');
+  btn.disabled = true; btn.textContent = t('⏳ 体检中…');
+  toast(t('一键体检：正在并发检测全部账号（每批 3 个，约 10~40 秒）…'));
   try {
     const d = await API.req('/api/accounts/check-all', {method:'POST'});
     await load();
     const s = d.summary;
     const parts = [];
-    if (s.admitted)      parts.push(`✅正常 ${s.admitted}`);
-    if (s.region_limited) parts.push(`⛔区域受限 ${s.region_limited}`);
-    if (s.disabled)      parts.push(`🚫已禁用 ${s.disabled}`);
-    if (s.auth_expired)  parts.push(`⌛登录失效 ${s.auth_expired}`);
-    if (s.challenge)     parts.push(`🤖真人验证 ${s.challenge}`);
-    if (s.forbidden)     parts.push(`⚠️无法判定 ${s.forbidden}`);
-    if (s.unknown)       parts.push(`❓未知 ${s.unknown}`);
-    if (s.skipped)       parts.push(`⏭跳过 ${s.skipped}`);
-    if (s.failed)        parts.push(`❌失败 ${s.failed}`);
-    const msg = `一键体检完成（共 ${s.total}，已检 ${s.checked}）：${parts.join(' · ') || '无账号'}`;
+    if (s.admitted)      parts.push(t('✅正常 {n}', {n: s.admitted}));
+    if (s.region_limited) parts.push(t('⛔区域受限 {n}', {n: s.region_limited}));
+    if (s.disabled)      parts.push(t('🚫已禁用 {n}', {n: s.disabled}));
+    if (s.auth_expired)  parts.push(t('⌛登录失效 {n}', {n: s.auth_expired}));
+    if (s.challenge)     parts.push(t('🤖真人验证 {n}', {n: s.challenge}));
+    if (s.forbidden)    parts.push(t('⚠️无法判定 {n}', {n: s.forbidden}));
+    if (s.unknown)       parts.push(t('❓未知 {n}', {n: s.unknown}));
+    if (s.skipped)       parts.push(t('⏭跳过 {n}', {n: s.skipped}));
+    if (s.failed)        parts.push(t('❌失败 {n}', {n: s.failed}));
+    const msg = t('一键体检完成（共 {n}，已检 {k}）：{p}', {n: s.total, k: s.checked, p: parts.join(' · ') || t('无账号')});
     const bad = s.disabled + s.region_limited + s.auth_expired + s.challenge + s.forbidden + s.unknown + s.failed + s.skipped;
     toast(msg, bad === 0 ? 'ok' : 'warn', 12000);
     // 异常账号明细（逐条 toast，最多 3 条避免刷屏；完整明细在列表状态列可见）
     const badList = (d.results || []).filter(r => (r.ok && r.state && r.state !== 'admitted') || (!r.ok && !r.skipped));
     badList.slice(0, 3).forEach(r => {
-      toast(`${r.email}：${r.ok ? '[' + r.state + '] ' + (r.detail || '') : (r.error || '失败')}`, 'err', 9000);
+      toast(t('{e}：{m}', {e: r.email, m: r.ok ? `[${r.state}] ${r.detail || ''}` : (r.error || t('失败'))}), 'err', 9000);
     });
-    if (badList.length > 3) toast(`…另有 ${badList.length - 3} 个异常账号，详见列表状态列`, 'warn', 8000);
+    if (badList.length > 3) toast(t('…另有 {n} 个异常账号，详见列表状态列', {n: badList.length - 3}), 'warn', 8000);
   } catch (e) {
-    toast('一键体检失败: ' + e.message, 'err', 8000);
+    toast(t('一键体检失败: ') + e.message, 'err', 8000);
   } finally {
     checkAllBusy = false; btn.disabled = false; btn.textContent = old;
   }
@@ -1000,10 +1380,10 @@ function openRedeem(id) {
   const a = accounts.find(x => x.id === id);
   if (!a) return;
   redeemCtx = id;
-  $('rTitle').textContent = a.email + ' · 兑换邀请码';
+  $('rTitle').textContent = t('{e} · 兑换邀请码', {e: a.email});
   $('rCode').value = '';
   $('rResult').innerHTML = a.redeem_info
-    ? (() => { try { const rd = JSON.parse(a.redeem_info); return '上次结果：[' + esc(rd.state) + '] ' + esc(rd.detail) + (a.redeemed_at ? '（' + esc(a.redeemed_at) + '）' : ''); } catch { return ''; } })()
+    ? (() => { try { const rd = JSON.parse(a.redeem_info); return t('上次结果：[{s}] {d}', {s: esc(rd.state), d: esc(rd.detail)}) + (a.redeemed_at ? t('（{tm}）', {tm: esc(a.redeemed_at)}) : ''); } catch { return ''; } })()
     : '';
   $('btnRedeem').disabled = false;
   $('mRedeem').classList.remove('hidden');
@@ -1012,21 +1392,21 @@ function openRedeem(id) {
 async function doRedeem() {
   if (!redeemCtx) return;
   const code = $('rCode').value.trim().toUpperCase();
-  if (!code) { $('rResult').innerHTML = '<span style="color:var(--orange)">请输入邀请码</span>'; return; }
+  if (!code) { $('rResult').innerHTML = `<span style="color:var(--orange)">${t('请输入邀请码')}</span>`; return; }
   $('btnRedeem').disabled = true;
-  $('rResult').innerHTML = '⏳ 正在执行兑换链（VM 唤醒 → 确认 → 兑换，约 3-15 秒）…';
+  $('rResult').innerHTML = t('⏳ 正在执行兑换链（VM 唤醒 → 确认 → 兑换，约 3-15 秒）…');
   try {
     const d = await API.req(`/api/accounts/${redeemCtx}/redeem`, {method:'POST', body: JSON.stringify({code})});
     const rd = d.redeem;
     const good = rd.state === 'redeemed';
     $('rResult').innerHTML = (good ? '<span style="color:var(--green)">✅ ' : '<span style="color:var(--red)">❌ ') +
       esc(rd.detail) + (rd.vm_id ? '<br><span style="color:var(--dim);font-size:11px">VM ' + esc(rd.vm_id) + '</span>' : '') + '</span>' +
-      (d.status_updated ? '<br><span style="color:var(--dim);font-size:11px">账号状态 → ' + esc(d.status_updated) + '</span>' : '');
-    toast(`兑换 [${rd.state}] ${rd.detail}`, good ? 'ok' : 'err', 7000);
+      (d.status_updated ? '<br><span style="color:var(--dim);font-size:11px">' + t('账号状态 → ') + esc(d.status_updated) + '</span>' : '');
+    toast(t('兑换 [{s}] {d}', {s: rd.state, d: rd.detail}), good ? 'ok' : 'err', 7000);
     await load();
   } catch (e) {
     $('rResult').innerHTML = '<span style="color:var(--red)">❌ ' + esc(e.message) + '</span>';
-    toast('兑换失败: ' + e.message, 'err', 7000);
+    toast(t('兑换失败: ') + e.message, 'err', 7000);
   } finally {
     $('btnRedeem').disabled = false;
   }
@@ -1040,32 +1420,32 @@ async function openProxy() {
     const st = await API.req('/api/settings');
     $('pProxy').value = st.proxy || '';
     $('pTest').innerHTML = st.effective
-      ? '当前生效：<span class="mono">' + esc(st.effective) + '</span>' + (st.proxy ? '' : '（来自环境变量 MUSE_PROXY）')
-      : '当前未设置代理（直连）';
-  } catch (e) { $('pTest').textContent = '读取设置失败: ' + e.message; }
+      ? t('当前生效：') + '<span class="mono">' + esc(st.effective) + '</span>' + (st.proxy ? '' : t('（来自环境变量 MUSE_PROXY）'))
+      : t('当前未设置代理（直连）');
+  } catch (e) { $('pTest').textContent = t('读取设置失败: ') + e.message; }
   $('mProxy').classList.remove('hidden');
 }
 async function saveProxy() {
   try {
     await API.req('/api/settings', {method:'PUT', body: JSON.stringify({proxy: $('pProxy').value.trim()})});
-    toast('全局代理已保存，立即生效', 'ok'); closeProxy();
+    toast(t('全局代理已保存，立即生效'), 'ok'); closeProxy();
   } catch (e) { toast(e.message, 'err'); }
 }
 async function testProxy() {
   const p = $('pProxy').value.trim();
-  $('pTest').innerHTML = '⏳ 正在测试连通性…';
+  $('pTest').innerHTML = t('⏳ 正在测试连通性…');
   try {
     const d = await API.req('/api/settings/test-proxy', {method:'POST', body: JSON.stringify({proxy: p})});
     if (d.error) $('pTest').innerHTML = '<span style="color:var(--red)">❌ ' + esc(d.error) + '</span>';
-    else $('pTest').innerHTML = '<span style="color:var(--green)">✅ 可连通 muse.ai</span> · HTTP ' + d.status + ' · 延迟 ' + d.latency_ms + 'ms' + (d.proxy ? ' · 经 ' + esc(d.proxy) : ' · 直连');
+    else $('pTest').innerHTML = `<span style="color:var(--green)">${t('✅ 可连通 muse.ai')}</span> · HTTP ${d.status}${t(' · 延迟 ')}${d.latency_ms}ms${d.proxy ? t(' · 经 ') + esc(d.proxy) : t(' · 直连')}`;
   } catch (e) { $('pTest').innerHTML = '<span style="color:var(--red)">❌ ' + esc(e.message) + '</span>'; }
 }
 
 /* ---------- 删除 ---------- */
 async function delAccount(id) {
   const a = accounts.find(x => x.id === id);
-  if (!confirm('确认删除账号「' + (a ? a.email : id) + '」？\n删除后不可恢复。')) return;
-  try { await API.req('/api/accounts/' + id, {method:'DELETE'}); toast('已删除', 'ok'); await load(); }
+  if (!confirm(t('确认删除账号「{e}」？\n删除后不可恢复。', {e: a ? a.email : id}))) return;
+  try { await API.req('/api/accounts/' + id, {method:'DELETE'}); toast(t('已删除'), 'ok'); await load(); }
   catch (e) { toast(e.message, 'err'); }
 }
 
@@ -1074,7 +1454,7 @@ async function viewSecret(id) {
   const a = accounts.find(x => x.id === id);
   if (!a) return;
   secretCtx = {id, cookie:''};
-  $('sTitle').textContent = a.email + ' · 登录 Cookie';
+  $('sTitle').textContent = t('{e} · 登录 Cookie', {e: a.email});
   $('rowCookie').style.display = a.has_cookie ? 'flex' : 'none';
   $('valCookie').textContent = '••••••••••'; $('valCookie').classList.add('masked'); $('valCookie').dataset.shown = '0';
   $('mSecret').classList.remove('hidden');
@@ -1087,7 +1467,7 @@ async function toggleSecret() {
   const valEl = $('valCookie');
   const btn = valEl.parentElement.querySelectorAll('button')[0];
   if (valEl.dataset.shown === '1') {
-    valEl.textContent = '••••••••••'; valEl.classList.add('masked'); valEl.dataset.shown = '0'; btn.textContent = '显示';
+    valEl.textContent = '••••••••••'; valEl.classList.add('masked'); valEl.dataset.shown = '0'; btn.textContent = t('显示');
   } else {
     let v = secretCtx.cookie;
     if (!v) {
@@ -1096,14 +1476,14 @@ async function toggleSecret() {
       } catch (e) { toast(e.message, 'err'); return; }
     }
     valEl.textContent = v;
-    valEl.classList.remove('masked'); valEl.dataset.shown = '1'; btn.textContent = '隐藏';
+    valEl.classList.remove('masked'); valEl.dataset.shown = '1'; btn.textContent = t('隐藏');
   }
 }
 async function copySecret() {
   let val = secretCtx.cookie || await API.req(`/api/accounts/${secretCtx.id}/secret?field=cookie`).then(d => d.value).catch(() => '');
-  if (!val) { toast('该字段为空', 'warn'); return; }
-  try { await navigator.clipboard.writeText(val); toast('已复制到剪贴板', 'ok'); }
-  catch { const ta = document.createElement('textarea'); ta.value = val; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('已复制', 'ok'); }
+  if (!val) { toast(t('该字段为空'), 'warn'); return; }
+  try { await navigator.clipboard.writeText(val); toast(t('已复制到剪贴板'), 'ok'); }
+  catch { const ta = document.createElement('textarea'); ta.value = val; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();   toast(t('已复制'), 'ok'); }
 }
 
 /* ---------- 邀请信息 ---------- */
@@ -1111,99 +1491,99 @@ function closeInvite() { $('mInvite').classList.add('hidden'); }
 async function viewInvite(id, resync) {
   const a = accounts.find(x => x.id === id);
   if (!a) return;
-  $('iTitle').textContent = a.email + ' · 邀请信息';
+  $('iTitle').textContent = t('{e} · 邀请信息', {e: a.email});
   if (!resync && a.invite_info) {
     try { renderInvite(JSON.parse(a.invite_info), a.invite_synced_at, id, false); $('mInvite').classList.remove('hidden'); return; } catch {}
   }
   $('mInvite').classList.remove('hidden');
-  $('iBody').innerHTML = '<div class="empty" style="padding:30px 10px"><div class="big">⌛</div><div>正在请求 muse.ai …（约 1-20 秒）</div></div>';
+  $('iBody').innerHTML = `<div class="empty" style="padding:30px 10px"><div class="big">⌛</div><div>${t('正在请求 muse.ai …（约 1-20 秒）')}</div></div>`;
   try {
     const d = await API.req(`/api/accounts/${id}/fetch-invite`, {method:'POST'});
     renderInvite(Object.assign({}, d.invite, {publishable_key: d.publishable_key || (d.invite && d.invite.publishable_key)}), d.synced_at, id, true);
     await load();
   } catch (e) {
-    $('iBody').innerHTML = `<div class="empty" style="padding:26px 10px"><div class="big">⚠️</div><div style="color:var(--red)">${esc(e.message)}</div><div style="margin-top:10px;color:var(--dim);font-size:12px">常见原因：① 登录 Cookie 已过期或触发真人验证（需在浏览器完成验证）　② 账号邀请额度已用尽　③ 代理不可用（右上角「⚙ 代理」可测试）</div><button class="btn primary" style="margin:16px auto 0;display:inline-flex" onclick="viewInvite('${id}', true)">重试</button></div>`;
+    $('iBody').innerHTML = `<div class="empty" style="padding:26px 10px"><div class="big">⚠️</div><div style="color:var(--red)">${esc(e.message)}</div><div style="margin-top:10px;color:var(--dim);font-size:12px">${t('常见原因：① 登录 Cookie 已过期或触发真人验证（需在浏览器完成验证）　② 账号邀请额度已用尽　③ 代理不可用（右上角「⚙ 代理」可测试）')}</div><button class="btn primary" style="margin:16px auto 0;display:inline-flex" onclick="viewInvite('${id}', true)">${t('重试')}</button></div>`;
   }
 }
 function renderInvite(inv, syncedAt, id, fresh) {
   inviteCtx = inv;
-  const stMeta = {ELIGIBLE:{l:'可邀请', c:'b-active'}, EXHAUSTED:{l:'额度用尽', c:'b-expiring'}, NOT_ELIGIBLE:{l:'不可邀请', c:'b-banned'}, INELIGIBLE:{l:'不可邀请', c:'b-banned'}}[inv.invite_state] || {l:inv.invite_state || '-', c:'b-unverified'};
+  const stMeta = {ELIGIBLE:{l:t('可邀请'), c:'b-active'}, EXHAUSTED:{l:t('额度用尽'), c:'b-expiring'}, NOT_ELIGIBLE:{l:t('不可邀请'), c:'b-banned'}, INELIGIBLE:{l:t('不可邀请'), c:'b-banned'}}[inv.invite_state] || {l:inv.invite_state || '-', c:'b-unverified'};
   const pct = inv.max_uses > 0 ? Math.round(inv.use_count / inv.max_uses * 100) : 0;
   $('iBody').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <span class="badge ${stMeta.c}"><span class="dot"></span>${esc(stMeta.l)}</span>
-      <span style="font-size:11px;color:var(--dim)">${fresh ? '刚刚同步' : '同步于 ' + esc(syncedAt || '未知')}</span>
+      <span style="font-size:11px;color:var(--dim)">${fresh ? t('刚刚同步') : t('同步于 {ts}', {ts: esc(syncedAt || t('未知'))})}</span>
     </div>
     <div style="text-align:center;padding:6px 0 14px">
-      <div style="font-size:12px;color:var(--muted)">${esc(inv.title || '邀请好友，获得额外使用额度')}</div>
+      <div style="font-size:12px;color:var(--muted)">${esc(inv.title || t('邀请好友，获得额外使用额度'))}</div>
       <div style="font-size:30px;font-weight:800;letter-spacing:5px;color:var(--primary);font-family:Consolas,monospace;margin:6px 0">${esc(inv.code || '—')}</div>
-      <button class="btn sm primary" onclick="copyText(inviteCtx.code || '')">复制邀请码</button>
-      <button class="btn sm" onclick="copyText(inviteCtx.share_text || '')" ${inv.share_text ? '' : 'disabled'}>复制分享文案</button>
+      <button class="btn sm primary" onclick="copyText(inviteCtx.code || '')">${t('复制邀请码')}</button>
+      <button class="btn sm" onclick="copyText(inviteCtx.share_text || '')" ${inv.share_text ? '' : 'disabled'}>${t('复制分享文案')}</button>
     </div>
     <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px"><span style="color:var(--muted)">邀请名额</span><span>${inv.use_count ?? 0} / ${inv.max_uses ?? 0} 已使用（剩 ${inv.uses_remaining ?? 0}）</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px"><span style="color:var(--muted)">${t('邀请名额')}</span><span>${t('{u} / {m} 已使用（剩 {r}）', {u: inv.use_count ?? 0, m: inv.max_uses ?? 0, r: inv.uses_remaining ?? 0})}</span></div>
       <div style="height:6px;background:var(--line);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--primary),var(--primary2))"></div></div>
     </div>
     ${inv.reward && inv.reward.title ? `<div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12.5px"><b style="color:var(--green)">${esc(inv.reward.title)}</b><div style="color:var(--muted);margin-top:2px">${esc(inv.reward.body || '')}</div></div>` : ''}
     <div style="font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
-      ${inv.publishable_key ? `<div>Stripe 公钥：<span class="mono" style="color:var(--text);font-size:11px">${esc(inv.publishable_key)}</span> <button class="btn sm" onclick="copyText(inviteCtx.publishable_key)" style="padding:1px 8px;font-size:11px">复制</button></div>` : ''}
-      ${inv.invite_link ? `<div>邀请链接：<span style="color:var(--text)">${esc(inv.invite_link)}</span></div>` : ''}
+      ${inv.publishable_key ? `<div>${t('Stripe 公钥：')}<span class="mono" style="color:var(--text);font-size:11px">${esc(inv.publishable_key)}</span> <button class="btn sm" onclick="copyText(inviteCtx.publishable_key)" style="padding:1px 8px;font-size:11px">${t('复制')}</button></div>` : ''}
+      ${inv.invite_link ? `<div>${t('邀请链接：')}<span style="color:var(--text)">${esc(inv.invite_link)}</span></div>` : ''}
       ${inv.subtitle ? `<div style="color:var(--dim);line-height:1.6">${esc(inv.subtitle)}</div>` : ''}
       ${inv.subscription ? `
       <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)">
-        <div>订阅：<b>${esc(inv.subscription.tierName || inv.subscription.subscriptionType || '-')}</b> · 本周额度已用 ${inv.subscription.percentUsed ?? 0}% · 加购/奖励额度 <b style="color:var(--violet)">${Number(inv.subscription.topupBalance || 0).toLocaleString()}</b> / ${Number(inv.subscription.topupTotal || 0).toLocaleString()}（服务端单位）</div>
+        <div>${t('订阅：')}<b>${esc(inv.subscription.tierName || inv.subscription.subscriptionType || '-')}</b>${t(' · 本周额度已用 ')}${inv.subscription.percentUsed ?? 0}%${t(' · 加购/奖励额度 ')}<b style="color:var(--violet)">${Number(inv.subscription.topupBalance || 0).toLocaleString()}</b> / ${Number(inv.subscription.topupTotal || 0).toLocaleString()}${t('（服务端单位）')}</div>
       </div>` : ''}
       ${(() => {
         // 已兑换判定（可靠信号优先）：① 订阅 topupTotal>0（邀请奖励发放）→已兑换；② 本地兑换记录 already_redeemed → 已兑换；③ 无数据 → 参考文案
         if (inv.subscription && inv.subscription.topupTotal > 0) {
-          return `<div>已兑换他人邀请码：<b style="color:var(--orange)">是</b> <span style="color:var(--dim)">（依据：加购/邀请奖励额度总计 ${Number(inv.subscription.topupTotal).toLocaleString()}，此额度仅通过兑换他人邀请码或付费获得）</span></div>`;
+          return `<div>${t('已兑换他人邀请码：')}<b style="color:var(--orange)">${t('是')}</b> <span style="color:var(--dim)">${t('（依据：加购/邀请奖励额度总计 {n}，此额度仅通过兑换他人邀请码或付费获得）', {n: Number(inv.subscription.topupTotal).toLocaleString()})}</span></div>`;
         }
         if (inv.subscription && inv.subscription.topupTotal === 0) {
-          return `<div>已兑换他人邀请码：<b style="color:var(--green)">否</b> <span style="color:var(--dim)">（依据：无任何加购/邀请奖励额度，该账号从未兑换过他人邀请码）</span></div>`;
+          return `<div>${t('已兑换他人邀请码：')}<b style="color:var(--green)">${t('否')}</b> <span style="color:var(--dim)">${t('（依据：无任何加购/邀请奖励额度，该账号从未兑换过他人邀请码）')}</span></div>`;
         }
         let localRedeemed = false;
         const a = accounts.find(x => x.id === id);
         if (a && a.redeem_info) { try { localRedeemed = JSON.parse(a.redeem_info).state === 'already_redeemed'; } catch {} }
-        if (localRedeemed) return '<div>已兑换他人邀请码：<b style="color:var(--orange)">是</b><span style="color:var(--dim)">（依据兑换尝试：服务端返回 already_redeemed）</span></div>';
-        return `已兑换他人邀请码：${inv.has_redeemed_invite_code ? '<b style="color:var(--orange)">是</b>' : '否'} <span style="color:var(--dim)">（订阅数据未同步，接口自报字段实测不准确，仅供参考；重新点「拉取」可刷新）</span>`;
+        if (localRedeemed) return `<div>${t('已兑换他人邀请码：')}<b style="color:var(--orange)">${t('是')}</b><span style="color:var(--dim)">${t('（依据兑换尝试：服务端返回 already_redeemed）')}</span></div>`;
+        return `${t('已兑换他人邀请码：')}${inv.has_redeemed_invite_code ? `<b style="color:var(--orange)">${t('是')}</b>` : t('否')} <span style="color:var(--dim)">${t('（订阅数据未同步，接口自报字段实测不准确，仅供参考；重新点「拉取」可刷新）')}</span>`;
       })()}
     </div>`;
 }
-async function copyText(t) {
-  if (!t) return;
-  try { await navigator.clipboard.writeText(t); toast('已复制', 'ok'); }
-  catch { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('已复制', 'ok'); }
+async function copyText(txt) {
+  if (!txt) return;
+  try { await navigator.clipboard.writeText(txt); toast(t('已复制'), 'ok'); }
+  catch { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast(t('已复制'), 'ok'); }
 }
 
 /* ---------- 导入 / 导出 ---------- */
 function exportData(reveal) {
   if (reveal === true) {
-    if (!confirm('将以「明文密码」导出备份文件。\n文件包含全部账号与明文密码，请务必妥善保管！\n\n继续导出？')) return;
-  } else if (accounts.length && !confirm('导出备份？（密码保持加密形态，导入本机数据目录后可直接使用）\n\n如需明文导出请再点一次并确认。')) return;
+    if (!confirm(t('将以「明文密码」导出备份文件。\n文件包含全部账号与明文密码，请务必妥善保管！\n\n继续导出？'))) return;
+  } else if (accounts.length && !confirm(t('导出备份？（密码保持加密形态，导入本机数据目录后可直接使用）\n\n如需明文导出请再点一次并确认。'))) return;
   const q = reveal ? '?reveal=1' : '';
   const t = API.token ? (reveal ? '&token=' + encodeURIComponent(API.token) : '?token=' + encodeURIComponent(API.token)) : '';
   const url = '/api/export' + (reveal ? q : '') + t;
   const a = document.createElement('a');
   a.href = url; a.download = '';
   document.body.appendChild(a); a.click(); a.remove();
-  toast('备份导出中…', 'ok');
+  toast(t('备份导出中…'), 'ok');
 }
 // 右键导出按钮可触发明文导出（提示已含确认）
-const expBtn = document.querySelector('.hactions .btn[title*="导出"]');
+const expBtn = document.getElementById('btnExport');
 if (expBtn) expBtn.addEventListener('contextmenu', e => { e.preventDefault(); exportData(true); });
 
 function importClick() { $('importFile').value = ''; $('importFile').click(); }
 async function importData(input) {
   const f = input.files && input.files[0];
   if (!f) return;
-  const mode = confirm('导入模式选择：\n\n「确定」= 合并（跳过重复账号，推荐）\n「取消」= 整体替换（清空现有数据后导入）') ? 'merge' : 'replace';
-  if (mode === 'replace' && !confirm('整体替换将删除当前全部账号数据，确认继续？')) return;
+  const mode = confirm(t('导入模式选择：\n\n「确定」= 合并（跳过重复账号，推荐）\n「取消」= 整体替换（清空现有数据后导入）')) ? 'merge' : 'replace';
+  if (mode === 'replace' && !confirm(t('整体替换将删除当前全部账号数据，确认继续？'))) return;
   try {
     const text = await f.text();
     const d = await API.req('/api/import?mode=' + mode, {method:'POST', body: text});
-    toast(`导入完成：新增 ${d.added ?? d.imported ?? 0}${d.skipped ? '，跳过 ' + d.skipped : ''}`, 'ok');
+    toast(t('导入完成：新增 {n}', {n: d.added ?? d.imported ?? 0}) + (d.skipped ? t('，跳过 {k}', {k: d.skipped}) : ''), 'ok');
     await load();
-  } catch (e) { toast('导入失败: ' + e.message, 'err'); }
+  } catch (e) { toast(t('导入失败: ') + e.message, 'err'); }
 }
 
 /* ---------- 快捷键 ---------- */
@@ -1213,6 +1593,7 @@ document.addEventListener('keydown', e => {
 });
 document.querySelectorAll('.overlay').forEach(ov => ov.addEventListener('mousedown', e => { if (e.target === ov) { ov.classList.add('hidden'); } }));
 
+applyStaticI18N();
 init();
 </script>
 </body>
