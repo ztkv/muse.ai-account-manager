@@ -216,6 +216,8 @@
     <button class="btn primary" id="btnBatchRedeem" onclick="openBatchRedeem()" title="用同一个邀请码并发兑换选中账号">🎁 批量兑换</button>
     <button class="btn" onclick="detectSelected()" title="对选中账号执行体检 + 刷新邀请码/词元">🩺 检测选定</button>
     <button class="btn" onclick="updateSelectedInvites()" title="刷新选中账号的邀请码与词元使用状态">🎁 更新邀请/词元</button>
+    <button class="btn" onclick="copySelectedInvites()" title="把选中账号的邀请码复制到剪贴板（每行：邮箱 + 邀请码 + 剩余次数）">📋 复制邀请码</button>
+    <button class="btn" onclick="downloadSelectedInvites()" title="把选中账号的邀请码下载为 CSV 文件（邮箱、邀请码、剩余次数、同步时间）">⬇️ 下载邀请码</button>
     <button class="btn" onclick="clearSelection()">取消选择</button>
     <span style="font-size:11.5px;color:var(--muted)">批量兑换将并发执行（每批 3 个，各账号独立指纹），无 Cookie 的账号自动跳过</span>
   </div>
@@ -729,6 +731,71 @@ async function doBatchRedeem() {
   }
 }
 $('brCode').addEventListener('keydown', e => { if (e.key === 'Enter' && !$('btnBatchDo').disabled) doBatchRedeem(); });
+
+/* ---------- 选定账号邀请码导出（复制 / 下载） ---------- */
+function collectSelectedInvites() {
+  const targets = accounts.filter(a => selectedIds.has(a.id));
+  const rows = [];
+  let noCode = 0;
+  for (const a of targets) {
+    const code = String(a.invite_code || '').trim().toUpperCase();
+    if (!code) { noCode++; continue; }
+    let inv = null;
+    try { inv = a.invite_info ? JSON.parse(a.invite_info) : null; } catch (e) {}
+    let left = '';
+    if (inv) left = inv.uses_remaining ?? Math.max(0, (Number(inv.max_uses) || 0) - (Number(inv.use_count) || 0));
+    rows.push({ email: a.email, code, left: left === '' ? '' : String(left), synced: a.invite_synced_at || '' });
+  }
+  return { rows, noCode, total: targets.length };
+}
+function csvCell(v) {
+  const s = String(v ?? '');
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) {}
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+  return ok;
+}
+async function copySelectedInvites() {
+  if (selectedIds.size === 0) { toast('请先勾选账号（表格第一列）', 'warn'); return; }
+  const { rows, noCode } = collectSelectedInvites();
+  if (rows.length === 0) { toast('选中的账号里没有可用的邀请码（未刮开或未同步）', 'warn', 8000); return; }
+  const text = rows.map(r => [r.email, r.code, r.left].join('\t')).join('\n');
+  const ok = await copyTextToClipboard(text);
+  if (ok) toast(`已复制 ${rows.length} 个邀请码到剪贴板${noCode ? `（${noCode} 个无码跳过）` : ''}`, 'ok', 8000);
+  else toast('复制失败：浏览器拒绝了剪贴板访问，请改用「⬇️ 下载邀请码」', 'err', 10000);
+}
+function downloadSelectedInvites() {
+  if (selectedIds.size === 0) { toast('请先勾选账号（表格第一列）', 'warn'); return; }
+  const { rows, noCode } = collectSelectedInvites();
+  if (rows.length === 0) { toast('选中的账号里没有可用的邀请码（未刮开或未同步）', 'warn', 8000); return; }
+  const csv = '\uFEFF邮箱,邀请码,剩余次数,同步时间\r\n' +
+    rows.map(r => [csvCell(r.email), csvCell(r.code), csvCell(r.left), csvCell(r.synced)].join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const ts = new Date(), pad = n => String(n).padStart(2, '0');
+  a.download = `invite-codes-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  toast(`已下载 ${rows.length} 个邀请码（CSV）${noCode ? `（${noCode} 个无码跳过）` : ''}`, 'ok', 8000);
+}
 
 /* ---------- 新增 / 编辑 ---------- */
 function openEdit(id) {
