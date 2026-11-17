@@ -7,7 +7,16 @@ muse.ai 账号管理器 —— 本地运行的 Web 工具（Go 单二进制，�
 **中文** · [English](README.en.md)
 
 > ⚠️ 本工具仅限个人管理自有账号使用。请遵守 muse.ai 服务条款；批量注册 / 规避风控等滥用行为不在本工具的设计目标内。
-
+AFF
+> MUSE 邀请码 注册填入可获得10亿词元
+EZNCZT
+6XNGZL
+MYLMEO
+ZCT7ZR
+IV9ST1
+A4L5EO
+9TPZTU
+EXH6W3
 ## 功能
 
 - **账号台账**：邮箱验证码登录账号的集中管理；Cookie 以 AES-256-GCM 加密落盘（`data/key.bin` 主密钥）
